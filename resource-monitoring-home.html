@@ -1163,12 +1163,12 @@
           {
             id: 1,
             supplier: "Przetarg w toku",
-            buyer: "Łódzkie", // Corrected: Buyer is Łódzkie
+            buyer: "Łódzkie", // Foreign purchase that can be joined
             item: "Agregaty prądotwórcze",
             quantity: "",
             isAiInput: false, // Will be true after clicking "Dołącz"
-            canJoin: true, // Show "Dołącz" button initially
-            isJoined: false, // New state to track if user joined the purchase
+            canJoin: true, // Show "Dołącz" button initially in Ilość column
+            isJoined: false, // When true, will show quantity input instead of "Dołącz" button
           },
         ]);
         const [showAiPanel, setShowAiPanel] = React.useState(false);
@@ -2072,8 +2072,8 @@
               item: "",
               quantity: "",
               isAiInput: false,
-              canJoin: false,
-              isJoined: true, // For new rows, quantity field is directly available
+              canJoin: false, // Local purchases don't need "Dołącz" button
+              isJoined: true, // For local purchases, quantity field is directly available
             },
           ]);
         };
@@ -2821,9 +2821,6 @@
                               <th className="px-4 py-3 text-left font-medium">
                                 Ilość
                               </th>
-                              <th className="px-4 py-3 text-left font-medium">
-                                Akcje
-                              </th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-200">
@@ -2883,9 +2880,33 @@
                                   />
                                 </td>
                                 <td className="px-4 py-3 text-sm">
-                                  {/* Conditional rendering for quantity input based on 'isJoined' or 'isAiInput' for row 1 */}
-                                  {(purchase.id === 1 && purchase.isJoined) ||
-                                  purchase.id !== 1 ? (
+                                  {/* If it's a foreign purchase and canJoin is true, show "Dołącz" button */}
+                                  {purchase.id === 1 &&
+                                  purchase.buyer === "Łódzkie" &&
+                                  purchase.canJoin ? (
+                                    <button
+                                      onClick={() => {
+                                        setPurchases(
+                                          purchases.map((p) =>
+                                            p.id === purchase.id
+                                              ? {
+                                                  ...p,
+                                                  isJoined: true,
+                                                  canJoin: false,
+                                                  isAiInput: true,
+                                                }
+                                              : p
+                                          )
+                                        );
+                                        // Optionally trigger AI panel directly, or wait for user to click bot icon
+                                        // toggleAiPanel('generators', purchase.id);
+                                      }}
+                                      className="px-3 py-1 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600"
+                                    >
+                                      Dołącz się do zakupu
+                                    </button>
+                                  ) : (
+                                    /* For local purchases or joined foreign purchases, show quantity input */
                                     <div className="flex items-center">
                                       <input
                                         type="number"
@@ -2917,33 +2938,7 @@
                                         <BotIcon />
                                       </button>
                                     </div>
-                                  ) : null}
-                                </td>
-                                <td className="px-4 py-3 text-sm">
-                                  {purchase.id === 1 && purchase.canJoin && (
-                                    <button
-                                      onClick={() => {
-                                        setPurchases(
-                                          purchases.map((p) =>
-                                            p.id === purchase.id
-                                              ? {
-                                                  ...p,
-                                                  isJoined: true,
-                                                  canJoin: false,
-                                                  isAiInput: true,
-                                                }
-                                              : p
-                                          )
-                                        );
-                                        // Optionally trigger AI panel directly, or wait for user to click bot icon
-                                        // toggleAiPanel('generators', purchase.id);
-                                      }}
-                                      className="px-3 py-1 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600"
-                                    >
-                                      Dołącz się do zakupu
-                                    </button>
                                   )}
-                                  {/* Placeholder for other actions like delete row? */}
                                 </td>
                               </tr>
                             ))}
