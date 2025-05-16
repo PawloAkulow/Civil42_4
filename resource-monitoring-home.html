@@ -20,8 +20,10 @@
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Include mock data before the main application script -->
+    <!-- Include mock data and services before the main application script -->
     <script src="mocks/mockData.js"></script>
+    <script src="mocks/mockAPI.js"></script>
+    <script src="mocks/mockAI.js"></script>
   </head>
   <body>
     <div id="root">
@@ -1109,7 +1111,7 @@
           },
         ]);
         const [showAiPanel, setShowAiPanel] = React.useState(false);
-        const [currentAiContext, setCurrentAiContext] = React.useState(null); // { type: 'generators'/'cans', purchaseId: X }
+        const [currentAiContext, setCurrentAiContext] = React.useState(null); // { type: 'resources'/'emergency', resourceName: X }
         const [aiSuggestions, setAiSuggestions] = React.useState([]);
         const [aiAnalysisPlan, setAiAnalysisPlan] = React.useState([]);
         const [aiAssistantLog, setAiAssistantLog] = React.useState([]);
@@ -1117,6 +1119,25 @@
         const [aiPanelWidth, setAiPanelWidth] = React.useState(400); // Default width for AI panel
         const [isResizing, setIsResizing] = React.useState(false);
         const [currentTime, setCurrentTime] = React.useState(new Date());
+
+        // Load AI assistant data on component mount
+        React.useEffect(() => {
+          // Load conversation history
+          mockAI.getConversationLog().then((log) => {
+            setAiAssistantLog(log);
+          });
+
+          // Check for crisis alerts periodically
+          const crisisCheckInterval = setInterval(() => {
+            mockAI.detectCrisis().then((hasCrisis) => {
+              if (hasCrisis) {
+                setCrisisAlert(true);
+              }
+            });
+          }, 60000); // Check every minute
+
+          return () => clearInterval(crisisCheckInterval);
+        }, []);
 
         React.useEffect(() => {
           const timerId = setInterval(() => {
@@ -1883,126 +1904,110 @@
           }
         };
 
-        const toggleAiPanel = (contextType, purchaseId) => {
+        const toggleAiPanel = (contextType, resourceInfo = {}) => {
           setShowAiPanel(true);
-          setCurrentAiContext({ type: contextType, purchaseId });
-          setAiAssistantLog([]); // Clear previous logs
-          setAiAnalysisPlan([]);
-          setAiSuggestions([]);
 
-          // Simulate AI interaction based on context
-          if (contextType === "generators") {
-            setAiAnalysisPlan([
-              "Sprawdzenie obecnej ilości agregatów w gminie.",
-              "Analiza wymagań prawnych (np. Ustawa o OC) dot. ilości agregatów.",
-              "Weryfikacja zapotrzebowania strategicznego (np. dla schronów, szpitali polowych).",
-              "Rekomendacja ilości.",
-            ]);
-            setAiAssistantLog([
-              {
-                sender: "ai",
-                message:
-                  "Rozpoczynam analizę zakupu agregatów prądotwórczych dla Gminy Bełchatów.",
-              },
-              {
-                sender: "ai",
-                message:
-                  "Sprawdzam obecny stan posiadania... Gmina posiada 5 agregatów (3 sprawne, 2 w naprawie).",
-              },
-              {
-                sender: "ai",
-                message:
-                  "Analizuję wymagania prawne... Ustawa XYZ sugeruje 1 agregat na 2000 mieszkańców.",
-              },
-              {
-                sender: "ai",
-                message:
-                  "Biorąc pod uwagę populację ~11,500, sugerowane jest posiadanie co najmniej 6 sprawnych agregatów.",
-              },
-              {
-                sender: "ai",
-                message:
-                  "Sugeruję zamówienie 3 nowych agregatów, aby osiągnąć stan 6 sprawnych i 2 w rezerwie/naprawie.",
-                actions: [
-                  {
-                    type: "accept_suggestion",
-                    value: 3,
-                    label: "Zaakceptuj sugestię (3 szt.)",
-                  },
-                ],
-              },
-            ]);
-            setAiSuggestions([{ label: "Zamów 3 agregaty", value: 3 }]);
-          } else if (contextType === "cans") {
-            setAiAnalysisPlan([
-              "Sprawdzenie obecnych stanów magazynowych konserw.",
-              "Analiza dat ważności posiadanych zapasów.",
-              "Weryfikacja norm żywnościowych dla populacji.",
-              "Rekomendacja ilości do zakupu.",
-            ]);
-            setAiAssistantLog([
-              {
-                sender: "ai",
-                message:
-                  "Rozpoczynam analizę zakupu konserw dla Gminy Bełchatów.",
-              },
-              {
-                sender: "ai",
-                message:
-                  "Sprawdzam stany magazynowe... Obecnie posiadamy 1500 szt. konserw mięsnych i 800 szt. konserw warzywnych.",
-              },
-              {
-                sender: "ai",
-                message:
-                  "Analizuję daty ważności... 30% konserw mięsnych traci ważność w ciągu najbliższych 3 miesięcy.",
-              },
-              {
-                sender: ai,
-                message:
-                  "Sugeruję uzupełnienie zapasów o 500 szt. konserw mięsnych i 200 szt. warzywnych, aby zapewnić 3-dniowy bufor bezpieczeństwa.",
-                actions: [
-                  {
-                    type: "accept_suggestion_cans",
-                    value: { meat: 500, veg: 200 },
-                    label: "Zaakceptuj (500 mięsnych, 200 warzywnych)",
-                  },
-                ],
-              },
-            ]);
-            setAiSuggestions([
-              {
-                label: "Zamów 500 mięsnych, 200 warzywnych",
-                value: { meat: 500, veg: 200 },
-              },
-            ]);
+          // Create context based on resource info
+          const context = {
+            type: contextType || "resources",
+            resourceName: resourceInfo.name || "zasobu",
+            resourceType: resourceInfo.category || "general",
+            gminaName: resourceInfo.gmina || "Bełchatów",
+            purchaseId: resourceInfo.purchaseId,
+          };
+
+          setCurrentAiContext(context);
+
+          // Use mockAI to get suggestions
+          mockAI.getSuggestions(context, 3).then((suggestions) => {
+            setAiSuggestions(
+              suggestions.map((s) => ({
+                label: s.title,
+                value: s.id,
+                description: s.description,
+              }))
+            );
+          });
+
+          // Determine scenario based on context type
+          let scenarioType = contextType;
+
+          // Map generic types to more specific scenarios
+          if (!scenarioType || scenarioType === "resources") {
+            if (context.resourceType === "energetics") {
+              scenarioType = "powerOutage";
+            } else if (
+              context.resourceType === "water" ||
+              context.resourceType === "technical_water"
+            ) {
+              scenarioType = "waterShortage";
+            } else if (context.resourceType === "shelter") {
+              scenarioType = "evacuation";
+            } else {
+              scenarioType = "resources";
+            }
           }
+
+          // Get analysis plan based on scenario type
+          mockAI.getAnalysisPlan(scenarioType).then((plan) => {
+            setAiAnalysisPlan(plan.map((step) => step.description));
+          });
+
+          // Load conversation history with the appropriate context
+          mockAI.getConversationLog(contextType).then((log) => {
+            setAiAssistantLog(
+              log.map((entry) => ({
+                sender: entry.role === "assistant" ? "ai" : entry.role,
+                message: entry.content,
+              }))
+            );
+          });
         };
 
         const applyAiSuggestion = (value) => {
           if (currentAiContext) {
-            const { purchaseId, type } = currentAiContext;
-            let newQuantityString = "";
-            if (type === "generators") {
-              newQuantityString = String(value);
+            const { purchaseId, type, resourceName } = currentAiContext;
+
+            // Handle different suggestion types
+            let suggestionText = "";
+            if (type === "generators" || type === "resources") {
+              suggestionText = `Zastosowano sugestię dla ${
+                resourceName || "zasobu"
+              }`;
             } else if (type === "cans" && typeof value === "object") {
-              newQuantityString = `Mięsne: ${value.meat}, Warzywne: ${value.veg}`;
+              suggestionText = `Mięsne: ${value.meat}, Warzywne: ${value.veg}`;
+            } else {
+              suggestionText = `Zastosowano sugestię: ${value}`;
             }
 
-            setPurchases(
-              purchases.map((p) =>
-                p.id === purchaseId
-                  ? { ...p, quantity: newQuantityString, isAiInput: false }
-                  : p
-              )
-            );
-            setAiAssistantLog((prev) => [
-              ...prev,
-              {
-                sender: "user",
-                message: `Zaakceptowano sugestię: ${newQuantityString}`,
-              },
-            ]);
-            setShowAiPanel(false); // Optionally close panel after accepting
+            // Update purchases if applicable
+            if (purchaseId) {
+              setPurchases(
+                purchases.map((p) =>
+                  p.id === purchaseId
+                    ? { ...p, quantity: String(value), isAiInput: false }
+                    : p
+                )
+              );
+            }
+
+            // Add user message to the conversation log
+            mockAI
+              .addMessage("user", `Zaakceptowano sugestię: ${suggestionText}`)
+              .then((updatedLog) => {
+                // Transform the log format to match the application's format
+                setAiAssistantLog(
+                  updatedLog.map((entry) => ({
+                    sender: entry.role === "assistant" ? "ai" : entry.role,
+                    message: entry.content,
+                    timestamp: entry.timestamp
+                      ? new Date(entry.timestamp).toLocaleTimeString()
+                      : "",
+                  }))
+                );
+              });
+
+            setShowAiPanel(false); // Close panel after accepting
           }
         };
 
@@ -2011,8 +2016,43 @@
             applyAiSuggestion(value);
           } else if (actionType === "accept_suggestion_cans") {
             applyAiSuggestion(value); // Value is an object {meat: X, veg: Y}
+          } else if (actionType === "send_message") {
+            // Send user message to AI assistant
+            mockAI.addMessage("user", value).then((updatedLog) => {
+              // Transform the log format to match the application's format
+              setAiAssistantLog(
+                updatedLog.map((entry) => ({
+                  sender: entry.role === "assistant" ? "ai" : entry.role,
+                  message: entry.content,
+                  timestamp: entry.timestamp
+                    ? new Date(entry.timestamp).toLocaleTimeString()
+                    : "",
+                }))
+              );
+
+              // Get AI response
+              mockAI.getResponse(value).then((response) => {
+                // Response is already added to the log by mockAI.getResponse
+                setAiAssistantLog((prevLog) => [
+                  ...prevLog,
+                  {
+                    sender: "ai",
+                    message: response,
+                    timestamp: new Date().toLocaleTimeString(),
+                  },
+                ]);
+              });
+            });
           }
-          // Potentially add more AI actions here
+        };
+
+        // Function to handle user input in the AI assistant chat
+        const handleAiChatInput = (e) => {
+          if (e.key === "Enter" && e.target.value.trim()) {
+            const userMessage = e.target.value.trim();
+            handleAiAction("send_message", userMessage);
+            e.target.value = ""; // Clear input field
+          }
         };
 
         const startResize = (mouseDownEvent) => {
@@ -2834,6 +2874,29 @@
                             )}
                           </div>
                           <div className="p-3 border-t border-gray-700">
+                            <div className="flex mb-3">
+                              <input
+                                type="text"
+                                onKeyDown={handleAiChatInput}
+                                placeholder="Wpisz wiadomość do asystenta..."
+                                className="flex-1 px-3 py-2 bg-gray-700 text-white rounded-l text-sm border border-gray-600 focus:outline-none focus:border-blue-500"
+                              />
+                              <button
+                                onClick={(e) => {
+                                  const input = e.target.previousSibling;
+                                  if (input.value.trim()) {
+                                    handleAiAction(
+                                      "send_message",
+                                      input.value.trim()
+                                    );
+                                    input.value = "";
+                                  }
+                                }}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-r text-sm hover:bg-blue-500"
+                              >
+                                Wyślij
+                              </button>
+                            </div>
                             <button
                               onClick={() => setShowAiPanel(false)}
                               className="w-full bg-gray-600 hover:bg-gray-500 text-white py-2 rounded text-sm"
