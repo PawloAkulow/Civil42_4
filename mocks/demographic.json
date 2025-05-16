@@ -1,0 +1,37 @@
+{
+  "residents": 11539,
+  "tourists": 500,
+  "registeredVoters": 6890,
+  "publicInstitutions": 14,
+  "animalPopulations": [
+    {
+      "id": "cattle",
+      "name": "Bydło",
+      "count": 1200,
+      "foodPerDayKg": 10,
+      "waterPerDayL": 50
+    },
+    {
+      "id": "pigs",
+      "name": "Trzoda chlewna",
+      "count": 3500,
+      "foodPerDayKg": 3,
+      "waterPerDayL": 10
+    },
+    {
+      "id": "poultry",
+      "name": "Drób",
+      "count": 15000,
+      "foodPerDayKg": 0.15,
+      "waterPerDayL": 0.3
+    },
+    {
+      "id": "sheep",
+      "name": "Owce/Kozy",
+      "count": 300,
+      "foodPerDayKg": 2,
+      "waterPerDayL": 8
+    }
+  ],
+  "grainReservesForSowingTonnes": 250
+}

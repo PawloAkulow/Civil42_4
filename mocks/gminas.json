@@ -1,0 +1,83 @@
+{
+  "gminaA": {
+    "id": "gminaA",
+    "name": "Gmina Bełchatów",
+    "center": [51.367, 19.367],
+    "zoom": 12,
+    "population": 12489,
+    "resources": [
+      {
+        "id": "m1-A",
+        "name": "Magazyn A1 (Żywność)",
+        "lat": 51.365,
+        "lng": 19.375,
+        "type": "storage"
+      },
+      {
+        "id": "osp-A",
+        "name": "OSP Gmina A",
+        "lat": 51.372,
+        "lng": 19.378,
+        "type": "emergency_service"
+      }
+    ],
+    "populationZones": [
+      {
+        "name": "Centrum Gminy A",
+        "lat": 51.37,
+        "lng": 19.365,
+        "density": "high",
+        "radius": 300
+      }
+    ]
+  },
+  "gminaB": {
+    "id": "gminaB",
+    "name": "Gmina Kleszczów",
+    "center": [51.217, 19.3],
+    "zoom": 12,
+    "population": 5800,
+    "resources": [
+      {
+        "id": "m1-B",
+        "name": "Magazyn K1 (Medykamenty)",
+        "lat": 51.215,
+        "lng": 19.305,
+        "type": "storage"
+      },
+      {
+        "id": "szpital-B",
+        "name": "Szpital Powiatowy Kleszczów",
+        "lat": 51.22,
+        "lng": 19.29,
+        "type": "medical_point"
+      }
+    ],
+    "populationZones": [
+      {
+        "name": "Osiedle Kleszczów",
+        "lat": 51.217,
+        "lng": 19.3,
+        "density": "medium",
+        "radius": 400
+      }
+    ]
+  },
+  "gminaC": {
+    "id": "gminaC",
+    "name": "Gmina Drużbice",
+    "center": [51.45, 19.4],
+    "zoom": 12,
+    "population": 5200,
+    "resources": [
+      {
+        "id": "wodociagi-C",
+        "name": "Ujęcie Wody Drużbice",
+        "lat": 51.455,
+        "lng": 19.405,
+        "type": "institution"
+      }
+    ],
+    "populationZones": []
+  }
+}

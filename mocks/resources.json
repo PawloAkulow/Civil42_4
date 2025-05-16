@@ -1,0 +1,86 @@
+[
+  {
+    "id": "ug",
+    "name": "Urząd Gminy",
+    "lat": 51.37,
+    "lng": 19.36,
+    "type": "institution",
+    "category": "other"
+  },
+  {
+    "id": "m1",
+    "name": "Magazyn A1 (Żywność kons.)",
+    "lat": 51.365,
+    "lng": 19.375,
+    "type": "storage",
+    "category": "consumer_food"
+  },
+  {
+    "id": "m2",
+    "name": "Magazyn B2 (Woda tech.)",
+    "lat": 51.36,
+    "lng": 19.38,
+    "type": "storage",
+    "category": "technical_water"
+  },
+  {
+    "id": "osp",
+    "name": "OSP Stradom (Agregat)",
+    "lat": 51.372,
+    "lng": 19.378,
+    "type": "emergency_service",
+    "category": "energetics"
+  },
+  {
+    "id": "beczkowoz1",
+    "name": "Beczkowóz Woda Pitna",
+    "lat": 51.362,
+    "lng": 19.355,
+    "type": "mobile_unit",
+    "category": "potable_water",
+    "capacity": 5000,
+    "fillLevel": 80
+  },
+  {
+    "id": "alert_zone",
+    "name": "Strefa Alertu Żywnościowego",
+    "lat": 51.368,
+    "lng": 19.37,
+    "type": "alert",
+    "category": "consumer_food"
+  },
+  {
+    "id": "rolnik_zboze",
+    "name": "Gosp. Rolne (Zboże)",
+    "lat": 51.38,
+    "lng": 19.35,
+    "type": "storage",
+    "category": "agricultural_food"
+  },
+  {
+    "id": "studnia_gminna",
+    "name": "Studnia Gminna Głębinowa",
+    "lat": 51.375,
+    "lng": 19.365,
+    "type": "institution",
+    "category": "potable_water"
+  },
+  {
+    "id": "schron1",
+    "name": "Schron Podstawowy Alfa",
+    "lat": 51.378,
+    "lng": 19.365,
+    "type": "shelter",
+    "category": "infrastructure",
+    "capacity": 50
+  },
+  {
+    "id": "med1",
+    "name": "Punkt Medyczny Omega",
+    "lat": 51.36,
+    "lng": 19.35,
+    "type": "medical_point",
+    "category": "medical",
+    "staff": 2
+  }
+]
