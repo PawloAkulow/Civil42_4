@@ -9,3 +9,56 @@ body {
   transform: translateY(-2px);
   transition: transform 0.2s ease;
 }
+
+/* Floating AI Button Styles */
+.ai-floating-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 999;
+  transition: all 0.3s ease;
+  border: none;
+  box-shadow: none;
+}
+
+.ai-floating-button img {
+  width: 60px;
+  height: 60px;
+}
+
+.ai-floating-button:hover {
+  transform: scale(1.05);
+}
+
+/* AI Panel Styles */
+.ai-panel-fixed {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  max-height: 80vh;
+  width: 400px !important; /* Override inline width */
+  z-index: 1000;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

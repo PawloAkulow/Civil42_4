@@ -2032,6 +2032,16 @@ const LocalAdminDashboard = () => {
   };
 
   const toggleAiPanel = (contextType, purchaseId) => {
+    // Toggle panel if already showing
+    if (
+      showAiPanel &&
+      currentAiContext &&
+      currentAiContext.type === contextType
+    ) {
+      setShowAiPanel(false);
+      return;
+    }
+
     setShowAiPanel(true);
     setCurrentAiContext({ type: contextType, purchaseId });
     setAiAssistantLog([]); // Clear previous logs
@@ -2187,6 +2197,15 @@ const LocalAdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      {/* Floating AI Assistant Button */}
+      <button
+        className="ai-floating-button"
+        onClick={() => toggleAiPanel("resources")}
+        aria-label="Asystent AI"
+        title="Otwórz Asystenta AI"
+      >
+        <img src="SharkIT-assistant.png" alt="AI Assistant" />
+      </button>
       {/* Navigation Sidebar */}
       <div
         className={`transition-all duration-300 ${
@@ -2852,7 +2871,7 @@ const LocalAdminDashboard = () => {
               {/* AI Assistant Panel */}
               {showAiPanel && (
                 <div
-                  className="bg-gray-800 text-white shadow-lg flex flex-col overflow-hidden transition-all duration-300 ease-in-out relative"
+                  className="bg-gray-800 text-white shadow-lg flex flex-col overflow-hidden transition-all duration-300 ease-in-out relative ai-panel-fixed"
                   style={{ width: `${aiPanelWidth}px` }}
                 >
                   <div
@@ -2946,12 +2965,24 @@ const LocalAdminDashboard = () => {
                       )}
                     </div>
                     <div className="p-3 border-t border-gray-700">
-                      <button
-                        onClick={() => setShowAiPanel(false)}
-                        className="w-full bg-gray-600 hover:bg-gray-500 text-white py-2 rounded text-sm"
-                      >
-                        Zamknij Asystenta
-                      </button>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => setShowAiPanel(false)}
+                          className="flex-1 bg-gray-600 hover:bg-gray-500 text-white py-2 rounded text-sm"
+                        >
+                          Zamknij Asystenta
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowAiPanel(false);
+                            // Clear conversation if needed
+                            // mockAI.clearConversation();
+                          }}
+                          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm"
+                        >
+                          Minimalizuj
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
