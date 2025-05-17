@@ -12,6 +12,38 @@ if (typeof process === "undefined" || !process.env) {
   console.log("Environment variables initialized (fallback in script.js)");
 }
 
+// Create a fallback for realAI if it doesn't exist
+if (typeof window.realAI === "undefined") {
+  console.log("Creating fallback for realAI in script.js");
+  window.realAI = window.mockAI || {
+    getConversationLog: async (contextType) => {
+      console.log("Using fallback realAI.getConversationLog in script.js");
+      return [
+        {
+          role: "assistant",
+          content:
+            "Witaj! Jestem w trybie awaryjnym. Niektóre funkcje mogą być niedostępne.",
+          timestamp: new Date().toISOString(),
+        },
+      ];
+    },
+    addMessage: async (role, content, contextType) => {
+      console.log("Using fallback realAI.addMessage in script.js");
+      return [
+        {
+          role,
+          content,
+          timestamp: new Date().toISOString(),
+        },
+      ];
+    },
+    getResponse: async (userInput) => {
+      console.log("Using fallback realAI.getResponse in script.js");
+      return "Przepraszam, działam w trybie awaryjnym. Spróbuj odświeżyć stronę lub skontaktuj się z administratorem.";
+    },
+  };
+}
+
 // Icons - using inline SVGs for self-contained file
 const UserIcon = () => (
   <svg
@@ -2128,7 +2160,7 @@ const LocalAdminDashboard = () => {
             "Analizuję daty ważności... 30% konserw mięsnych traci ważność w ciągu najbliższych 3 miesięcy.",
         },
         {
-          sender: ai,
+          sender: "ai",
           message:
             "Sugeruję uzupełnienie zapasów o 500 szt. konserw mięsnych i 200 szt. warzywnych, aby zapewnić 3-dniowy bufor bezpieczeństwa.",
           actions: [

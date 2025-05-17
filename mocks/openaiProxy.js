@@ -21,10 +21,17 @@ if (typeof process === "undefined" || !process.env) {
 // Get OpenAI API key from environment variable
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
-// Check if we're running in local file protocol
-const isLocalFileProtocol = () => {
-  return window.location.protocol === "file:";
-};
+// Utility function to check if we're running via file:// protocol
+// Use existing global function if available to avoid duplicate declarations
+const isLocalFileProtocol =
+  typeof window.isLocalFileProtocol === "function"
+    ? window.isLocalFileProtocol
+    : () => window.location.protocol === "file:";
+
+// Store the function globally for other scripts to use
+if (typeof window.isLocalFileProtocol !== "function") {
+  window.isLocalFileProtocol = isLocalFileProtocol;
+}
 
 // Check if we have a valid API key
 const isApiKeyValid = () => {

@@ -82,9 +82,15 @@ const addMessage = async (
  * Check if we're running on a local file:// protocol
  * @returns {boolean} True if running on file:// protocol
  */
-const isLocalFileProtocol = () => {
-  return window.location.protocol === "file:";
-};
+const isLocalFileProtocol =
+  typeof window.isLocalFileProtocol === "function"
+    ? window.isLocalFileProtocol
+    : () => window.location.protocol === "file:";
+
+// Store the function globally for other scripts to use
+if (typeof window.isLocalFileProtocol !== "function") {
+  window.isLocalFileProtocol = isLocalFileProtocol;
+}
 
 /**
  * Generate a local fallback response

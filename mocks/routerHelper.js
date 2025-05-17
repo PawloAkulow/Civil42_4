@@ -23,12 +23,16 @@ window.routes = window.routes || {};
 // Original fetch function
 const originalFetch = window.fetch;
 
-/**
- * Check if running in local file protocol
- */
-const isLocalFileProtocol = () => {
-  return window.location.protocol === "file:";
-};
+// Use existing global function if available to avoid duplicate declarations
+const isLocalFileProtocol =
+  typeof window.isLocalFileProtocol === "function"
+    ? window.isLocalFileProtocol
+    : () => window.location.protocol === "file:";
+
+// Store the function globally for other scripts to use
+if (typeof window.isLocalFileProtocol !== "function") {
+  window.isLocalFileProtocol = isLocalFileProtocol;
+}
 
 /**
  * Intercept fetch requests to handle our mock API routes

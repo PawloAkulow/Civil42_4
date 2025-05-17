@@ -1988,6 +1988,38 @@
           }
         };
 
+        // Create a fallback for realAI if it doesn't exist
+        if (typeof window.realAI === "undefined") {
+          console.log("Creating fallback for realAI");
+          window.realAI = window.mockAI || {
+            getConversationLog: async (contextType) => {
+              console.log("Using fallback realAI.getConversationLog");
+              return [
+                {
+                  role: "assistant",
+                  content:
+                    "Witaj! Jestem w trybie awaryjnym. Niektóre funkcje mogą być niedostępne.",
+                  timestamp: new Date().toISOString(),
+                },
+              ];
+            },
+            addMessage: async (role, content, contextType) => {
+              console.log("Using fallback realAI.addMessage");
+              return [
+                {
+                  role,
+                  content,
+                  timestamp: new Date().toISOString(),
+                },
+              ];
+            },
+            getResponse: async (userInput) => {
+              console.log("Using fallback realAI.getResponse");
+              return "Przepraszam, działam w trybie awaryjnym. Spróbuj odświeżyć stronę lub skontaktuj się z administratorem.";
+            },
+          };
+        }
+
         const toggleAiPanel = (contextType, resourceInfo = {}) => {
           console.log(
             "toggleAiPanel called. Current showAiPanel:",
