@@ -1,9 +1,9 @@
 /**
  * Mock OpenAI API Proxy for Civil42 Application
  *
- * This module simulates a server-side API endpoint that would normally handle
- * OpenAI API requests. It contains the model settings, prompt engineering,
- * and context management that would typically be on the server.
+ * This module simulates a server-side API endpoint for backward compatibility,
+ * but now delegates real API calls to our dedicated backend service which
+ * uses the OpenAI SDK properly.
  */
 
 // Ensure process.env exists
@@ -11,9 +11,11 @@ if (typeof process === "undefined" || !process.env) {
   window.process = window.process || {
     env: {
       NODE_ENV: "development",
-      OPENAI_API_KEY: undefined, // Align with env-setup.js potential state
+      OPENAI_API_KEY: undefined,
       AI_MODEL: "gpt-4.1-nano",
       MOCK_DELAY: "300",
+      BACKEND_URL: "http://localhost:3001",
+      API_ENABLED: "true",
     },
   };
 }
@@ -21,15 +23,10 @@ if (typeof process === "undefined" || !process.env) {
 // Use the global isLocalFileProtocol function - no local declaration
 // This prevents duplicate variable declaration errors
 
-// Check if we have a valid API key
-const isApiKeyValid = () => {
-  const key = window.process?.env?.OPENAI_API_KEY; // Fetch current value
-  return (
-    key &&
-    key.startsWith("sk-") &&
-    key.length > 20 &&
-    !window.isLocalFileProtocol() // Use the global function with window prefix
-  );
+// Check if we should use the dedicated backend API
+const shouldUseBackendApi = () => {
+  const apiEnabled = window.process?.env?.API_ENABLED !== "false";
+  return apiEnabled && !window.isLocalFileProtocol();
 };
 
 // System prompt template with guardrails for the AI assistant
@@ -70,14 +67,19 @@ Odpowiadaj tak, by pomóc użytkownikowi w efektywnym zarządzaniu zasobami gmin
 `;
 
 /**
- * Get response from mocked OpenAI API
+ * Get response from OpenAI via backend or use mocks
  * @param {Object} requestData - Request data containing prompt, history and context
  * @returns {Promise<Object>} Promise resolving to response object
  */
 const getMockOpenAIResponse = async (requestData) => {
-  // If running in local file protocol, always use mock responses
-  if (window.isLocalFileProtocol()) {
-    console.log("Using mock API response due to local file protocol");
+  // If running on file:// protocol or API is disabled, always use mock responses
+  if (
+    window.isLocalFileProtocol() ||
+    window.process?.env?.API_ENABLED === "false"
+  ) {
+    console.log(
+      "Using mock API response due to local file protocol or disabled API"
+    );
 
     // Simulate thinking delay (more complex prompts take longer)
     const thinkingTime = Math.min(800 + requestData.prompt.length * 2, 2000);
@@ -97,15 +99,12 @@ const getMockOpenAIResponse = async (requestData) => {
     };
   }
 
-  // If we have a valid API key, try to use the real OpenAI API
-  if (isApiKeyValid()) {
+  // If we can use the backend API, delegate to it
+  if (shouldUseBackendApi()) {
     try {
-      return await getRealOpenAIResponse(requestData);
+      return await getBackendApiResponse(requestData);
     } catch (error) {
-      console.warn(
-        "Failed to use real OpenAI API, falling back to mock:",
-        error
-      );
+      console.warn("Failed to use backend API, falling back to mock:", error);
       // Fall back to mock if API call fails
     }
   }
@@ -163,81 +162,39 @@ const getMockOpenAIResponse = async (requestData) => {
 };
 
 /**
- * Get a response from the real OpenAI API
+ * Get a response from our backend API that uses the OpenAI SDK
  * @param {Object} requestData - Request data containing prompt, history and context
  * @returns {Promise<Object>} Promise resolving to response object
  */
-const getRealOpenAIResponse = async (requestData) => {
-  const apiKey = window.process?.env?.OPENAI_API_KEY; // Fetch current value
-  if (!apiKey) {
-    console.error("OpenAI API Key is not available in getRealOpenAIResponse.");
-    throw new Error("OpenAI API Key is missing.");
-  }
-  // Create context string from provided data
-  let contextString = "";
-  if (requestData.contextData) {
-    contextString = `Kontekst rozmowy: ${JSON.stringify(
-      requestData.contextData,
-      null,
-      2
-    )}`;
-  }
-
-  // Format the system prompt with context
-  const systemPrompt = systemPromptTemplate.replace(
-    "{{CONTEXT}}",
-    contextString
-  );
-
-  // Create the messages array
-  const messages = [{ role: "system", content: systemPrompt }];
-
-  // Add conversation history if available
-  if (requestData.history && Array.isArray(requestData.history)) {
-    for (const message of requestData.history) {
-      if (message.role === "system") continue; // Skip existing system messages
-      messages.push({
-        role: message.role,
-        content: message.content,
-      });
-    }
-  }
-
-  // Add current user prompt
-  messages.push({ role: "user", content: requestData.prompt });
+const getBackendApiResponse = async (requestData) => {
+  const backendUrl =
+    window.process?.env?.BACKEND_URL || "http://localhost:3001";
 
   try {
-    // Make the real API request to OpenAI
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Make the API call to our backend
+    const response = await fetch(`${backendUrl}/api/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`, // Use the fetched apiKey
       },
       body: JSON.stringify({
-        model: "gpt-4.1-nano", // Use the specified model
-        messages: messages,
-        temperature: 0.7,
-        max_tokens: 1000,
+        prompt: requestData.prompt,
+        history: requestData.history,
+        contextData: requestData.contextData,
       }),
     });
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
       throw new Error(
-        `OpenAI API error: ${response.status} ${response.statusText}`
+        errorData.message ||
+          `Backend API error: ${response.status} ${response.statusText}`
       );
     }
 
-    const data = await response.json();
-    return {
-      id: data.id,
-      content: data.choices[0].message.content,
-      model: data.model,
-      systemPrompt: systemPrompt,
-      created: data.created,
-    };
+    return await response.json();
   } catch (error) {
-    console.error("Error calling OpenAI API:", error);
+    console.error("Error calling backend API:", error);
     throw error;
   }
 };
@@ -315,7 +272,7 @@ const handleOpenAIRequest = async (requestData) => {
     if (requestData.method === "POST") {
       const body = await requestData.json();
 
-      // Process the request through our mock or real handler
+      // Process the request through our handler
       const responseData = await getMockOpenAIResponse(body);
 
       // Return the response
@@ -368,5 +325,5 @@ setupOpenAIRouteHandler();
 // Optionally expose for testing
 window.openaiProxy = {
   getMockOpenAIResponse,
-  getRealOpenAIResponse,
+  getBackendApiResponse,
 };

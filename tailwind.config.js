@@ -2,10 +2,19 @@
 module.exports = {
   content: ["./resource-monitoring-home.html", "./script.js"],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          '"Segoe UI"',
+          "Roboto",
+          '"Helvetica Neue"',
+          "Arial",
+          "sans-serif",
+        ],
+      },
+    },
   },
   plugins: [],
-  corePlugins: {
-    preflight: false, // Disable preflight to avoid conflicts with existing styles
-  },
 };

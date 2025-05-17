@@ -1,3 +1,39 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Extend Preflight with custom base styles */
+@layer base {
+  /* Typography: Consistent heading styles */
+  h1 {
+    @apply text-2xl font-bold mb-4;
+  }
+  h2 {
+    @apply text-xl font-semibold mb-3;
+  }
+  h3 {
+    @apply text-lg font-medium mb-2;
+  }
+
+  /* Links: Consistent styling */
+  a {
+    @apply text-blue-600 hover:text-blue-800 transition-colors;
+  }
+
+  /* Lists: Restore default styling for ul/ol when needed */
+  ul.default-list {
+    @apply list-disc list-inside;
+  }
+  ol.default-list {
+    @apply list-decimal list-inside;
+  }
+
+  /* Ensure the AI panel and floating button maintain their styles */
+  .ai-panel-fixed {
+    @apply bg-gray-800 shadow-lg;
+  }
+
+  .ai-floating-button {
+    @apply bg-transparent;
+  }
+}

@@ -12,8 +12,15 @@ if (typeof window.isLocalFileProtocol === "undefined") {
 // Initialize process.env for browser environment
 window.process = {
   env: {
+    // OpenAI configuration
     OPENAI_API_KEY: undefined,
-    AI_MODEL: "gpt-4.1-nano",
+    AI_MODEL: "gpt-4-turbo-preview",
+
+    // Backend configuration
+    BACKEND_URL: "http://localhost:3001",
+    API_ENABLED: "true", // Set to "false" to disable backend API and use mocks
+
+    // General settings
     MOCK_DELAY: "300",
     NODE_ENV: "development",
   },

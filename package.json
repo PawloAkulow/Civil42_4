@@ -1,15 +1,22 @@
 {
+  "name": "civil42",
+  "version": "1.0.0",
+  "description": "Resource monitoring system for municipalities with AI assistant",
   "dependencies": {
     "dotenv": "^16.5.0",
     "openai": "^4.100.0"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.21",
+    "concurrently": "^8.2.2",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.0"
   },
   "scripts": {
     "build:css": "tailwindcss -i ./input.css -o ./dist/tailwind-output.css",
-    "watch:css": "tailwindcss -i ./input.css -o ./dist/tailwind-output.css --watch"
+    "watch:css": "tailwindcss -i ./input.css -o ./dist/tailwind-output.css --watch",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:server": "npx http-server -p 5500",
+    "dev:full": "concurrently \"npm run dev:backend\" \"npm run watch:css\" \"npm run dev:server\""
   }
 }

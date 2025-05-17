@@ -79,7 +79,7 @@ const addMessage = async (
 };
 
 /**
- * Get response from OpenAI API
+ * Get response from OpenAI API via our backend
  * @param {string} userInput - User message
  * @param {Array} conversationHistory - Previous messages in conversation
  * @param {Object} contextData - Context data to provide to AI (e.g. demographic info)
@@ -90,18 +90,23 @@ const getResponse = async (
   conversationHistory = [],
   contextData = {}
 ) => {
-  // If we're running from a local file, don't attempt API call
-  if (window.isLocalFileProtocol()) {
+  // Get backend URL from environment
+  const backendUrl =
+    window.process?.env?.BACKEND_URL || "http://localhost:3001";
+  const apiEnabled = window.process?.env?.API_ENABLED !== "false";
+
+  // If we're running from a local file or API is disabled, don't attempt API call
+  if (window.isLocalFileProtocol() || !apiEnabled) {
     console.log(
-      "Running locally with file:// protocol - using simulated AI responses"
+      "Running locally with file:// protocol or API disabled - using simulated AI responses"
     );
     await new Promise((resolve) => setTimeout(resolve, 800)); // Simulate response time
     return generateLocalFallbackResponse(userInput, contextData);
   }
 
   try {
-    // Make the API call to our backend proxy
-    const response = await fetch("/api/openai-chat", {
+    // Make the API call to our new backend server instead of the mock endpoint
+    const response = await fetch(`${backendUrl}/api/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -114,8 +119,10 @@ const getResponse = async (
     });
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
       throw new Error(
-        `OpenAI API error: ${response.status} ${response.statusText}`
+        errorData.message ||
+          `Backend API error: ${response.status} ${response.statusText}`
       );
     }
 
@@ -132,11 +139,11 @@ const getResponse = async (
       error.message.includes("NetworkError")
     ) {
       return (
-        "Brak połączenia z API. Aby korzystać z pełnej wersji asystenta AI:\n\n" +
-        "1. Uruchom aplikację przez serwer HTTP (np. używając Python: 'python -m http.server')\n" +
-        "2. Dodaj klucz API OpenAI w pliku .env\n" +
-        "3. Skonfiguruj backend do obsługi zapytań OpenAI\n\n" +
-        "Jeśli potrzebujesz natychmiastowej pomocy, uruchom aplikację w trybie Demo."
+        "Brak połączenia z backendem API. Aby korzystać z pełnej wersji asystenta AI:\n\n" +
+        "1. Upewnij się, że serwer backend działa na http://localhost:3001\n" +
+        "2. Sprawdź, czy klucz API OpenAI jest poprawnie skonfigurowany w pliku backend/.env\n" +
+        "3. Jeśli potrzebujesz natychmiastowej pomocy, ustaw API_ENABLED=false w env-setup.js\n\n" +
+        "Przechodzę do trybu offline z ograniczoną funkcjonalnością."
       );
     }
 
