@@ -3087,12 +3087,27 @@
                                                   .includes("konserw")
                                               ? "cans"
                                               : "generic",
-                                            purchase.id
+                                            purchase.id // Pass purchase.id as resourceInfo for context
                                           )
                                         }
                                         className="p-1 text-blue-600 hover:text-blue-800"
+                                        title="Uruchom asystenta AI"
                                       >
-                                        <BotIcon />
+                                        <img
+                                          src="SharkIT-assistant.png"
+                                          alt="Asystent AI"
+                                          style={{
+                                            width: "24px",
+                                            height: "24px",
+                                            display: "inline-block",
+                                          }}
+                                          onError={(e) => {
+                                            e.target.style.display = "none";
+                                            console.error(
+                                              "Failed to load SharkIT-assistant.png in table button"
+                                            );
+                                          }}
+                                        />
                                       </button>
                                     </div>
                                   )}
