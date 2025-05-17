@@ -3924,7 +3924,7 @@
             {showAiPanel && (
               <div
                 id="ai-panel"
-                className="bg-gray-800 text-white shadow-lg overflow-hidden transition-all duration-300 ease-in-out ai-panel-fixed"
+                className="bg-gray-800 text-white shadow-lg overflow-visible transition-all duration-300 ease-in-out ai-panel-fixed"
                 style={{
                   width: `${aiPanelWidth}px`,
                 }}
@@ -3934,7 +3934,10 @@
                   onMouseDown={startResize}
                 ></div>
                 {/* Actual AI content needs padding due to resizer taking up left edge */}
-                <div className="pl-2 flex flex-col h-full">
+                <div
+                  className="pl-2 flex flex-col h-full"
+                  style={{ height: "100%", overflow: "hidden" }}
+                >
                   {" "}
                   {/* Added pl-2 to not overlap resizer, and h-full */}
                   <div className="p-4 border-b border-gray-700 flex justify-between items-center">
@@ -3999,7 +4002,14 @@
                       </button>
                     </div>
                   </div>
-                  <div className="flex-1 p-4 overflow-y-auto space-y-3 text-sm">
+                  <div
+                    className="flex-1 p-4 overflow-y-auto space-y-3 text-sm"
+                    style={{
+                      overflowY: "auto",
+                      maxHeight: "calc(80vh - 140px)",
+                      height: "100%",
+                    }}
+                  >
                     <div className="space-y-1">
                       <p className="font-semibold">
                         Kontekst:{" "}
