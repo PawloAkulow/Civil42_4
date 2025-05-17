@@ -1172,16 +1172,16 @@ const LocalAdminDashboard = () => {
       isJoined: false, // New state to track if user joined the purchase
     },
   ]);
-  const [showAiPanel, setShowAiPanel] = React.useState(false);
-  const [currentAiContext, setCurrentAiContext] = React.useState(null); // { type: 'generators'/'cans', purchaseId: X }
+  const [showAiPanel, setShowAiPanel] = React.useState(false); // Keep true for now to see if it appears with correct tab
+  const [currentAiContext, setCurrentAiContext] = React.useState(null);
+  const [aiAssistantLog, setAiAssistantLog] = React.useState([]);
   const [aiSuggestions, setAiSuggestions] = React.useState([]);
   const [aiAnalysisPlan, setAiAnalysisPlan] = React.useState([]);
-  const [aiAssistantLog, setAiAssistantLog] = React.useState([]);
-  const [crisisAlert, setCrisisAlert] = React.useState(false);
   const [aiPanelWidth, setAiPanelWidth] = React.useState(400); // Default width for AI panel
   const [isResizing, setIsResizing] = React.useState(false);
   const [aiUserInput, setAiUserInput] = React.useState(""); // Added for completeness
   const [aiIsTyping, setAiIsTyping] = React.useState(false); // Added for completeness
+  const [isMouseOverAiPanel, setIsMouseOverAiPanel] = React.useState(false);
 
   const supplierOptions = [
     "Puszki&Słoiki S.A.",
@@ -2301,6 +2301,26 @@ const LocalAdminDashboard = () => {
     document.addEventListener("mouseup", stopDrag, false);
   };
 
+  const handleAiPanelWheel = (event) => {
+    if (isMouseOverAiPanel) {
+      const element = event.currentTarget;
+      const isScrollingUp = event.deltaY < 0;
+      const isScrollingDown = event.deltaY > 0;
+      // Check if the scroll event would scroll outside the content of the panel
+      const isAtTop = element.scrollTop === 0;
+      const isAtBottom =
+        element.scrollHeight - element.scrollTop <= element.clientHeight; // Use <= to handle precision issues
+
+      if ((isScrollingUp && isAtTop) || (isScrollingDown && isAtBottom)) {
+        // If trying to scroll past the top or bottom of the panel's content,
+        // allow the event to propagate to scroll the page.
+        return;
+      }
+      // Otherwise, stop the event from propagating to the page.
+      event.stopPropagation();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Floating AI Assistant Button */}
@@ -2977,6 +2997,8 @@ const LocalAdminDashboard = () => {
               {/* AI Assistant Panel */}
               {showAiPanel && (
                 <div
+                  onMouseEnter={() => setIsMouseOverAiPanel(true)}
+                  onMouseLeave={() => setIsMouseOverAiPanel(false)}
                   className="bg-gray-800 text-white shadow-lg flex flex-col overflow-hidden transition-all duration-300 ease-in-out relative ai-panel-fixed"
                   style={{ width: `${aiPanelWidth}px` }}
                 >
@@ -2997,7 +3019,10 @@ const LocalAdminDashboard = () => {
                         &times;
                       </button>
                     </div>
-                    <div className="flex-1 p-4 overflow-y-auto space-y-3 text-sm">
+                    <div
+                      className="flex-1 p-4 overflow-y-auto space-y-3 text-sm"
+                      onWheel={handleAiPanelWheel}
+                    >
                       <p className="font-semibold">
                         Kontekst:{" "}
                         {currentAiContext?.type === "generators"
