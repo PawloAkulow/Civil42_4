@@ -4020,7 +4020,16 @@ const App = () => {
   }
 };
 
-// Render the app
+// Render the app, ensuring it only happens once
 const container = document.getElementById("root");
-const root = ReactDOM.createRoot(container); // New React 18 way
-root.render(<App />);
+if (container && !window._reactRootInitialized) {
+  // Check global flag
+  const root = ReactDOM.createRoot(container);
+  root.render(<App />); // This will render the App component defined in script.js
+  window._reactRootInitialized = true; // Set global flag
+  console.log("INFO: React root for #root initialized by script.js.");
+} else if (container && window._reactRootInitialized) {
+  console.log(
+    "INFO: React root for #root was already initialized. script.js is skipping re-initialization."
+  );
+}
