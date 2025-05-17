@@ -90,10 +90,88 @@ const getResponse = async (
   conversationHistory = [],
   contextData = {}
 ) => {
+  // Check if this request should be intercepted by the ScenarioPlayer
+  if (window.scenarioPlayer) {
+    // Try to detect the current UI context
+    let currentPageContext = "unknown";
+
+    // Simple detection of which page we're on based on active tab
+    const activeTab = document.querySelector(".bg-blue-500") || {};
+    const tabText = activeTab.textContent || "";
+
+    if (
+      tabText.includes("Planowanie zakupów") ||
+      window.location.href.includes("purchase-planning")
+    ) {
+      currentPageContext = "strategicPurchasingPage";
+    }
+
+    // Try to intercept - if successful, return early (ScenarioPlayer handles the response)
+    if (
+      window.scenarioPlayer.interceptAiRequest(userInput, currentPageContext)
+    ) {
+      console.log("AI request intercepted by ScenarioPlayer");
+      return null; // ScenarioPlayer will handle rendering responses
+    }
+  }
+
   // Get backend URL from environment
   const backendUrl =
     window.process?.env?.BACKEND_URL || "http://localhost:3001";
   const apiEnabled = window.process?.env?.API_ENABLED !== "false";
+
+  // Fetch current gmina data from localStorage to provide updated context
+  try {
+    // Get demographic data
+    const demographicData = JSON.parse(
+      localStorage.getItem("demographic") || "{}"
+    );
+
+    // Get resources data
+    const resourcesData = JSON.parse(localStorage.getItem("resources") || "[]");
+
+    // Get gmina data for Bełchatów (gminaA)
+    const gminasData = JSON.parse(localStorage.getItem("gminas") || "{}");
+    const belchatowGmina = gminasData.gminaA || {};
+
+    // Create enhanced context with the latest data
+    const enhancedContext = {
+      ...contextData,
+      aktualneInformacjeGminy: {
+        demograficzne: {
+          liczbaMieszkancow: demographicData.residents || "brak danych",
+          turysci: demographicData.tourists || "brak danych",
+          wyborcyZarejestrowani:
+            demographicData.registeredVoters || "brak danych",
+          instytucjePubliczne:
+            demographicData.publicInstitutions || "brak danych",
+          populacjaZwierzat: demographicData.animalPopulations || "brak danych",
+          rezerwyZiarnaNaSiew:
+            demographicData.grainReservesForSowingTonnes || "brak danych",
+        },
+        zasoby: resourcesData.map((r) => ({
+          id: r.id,
+          nazwa: r.name,
+          typ: r.type,
+          kategoria: r.category,
+        })),
+        gminaBelchatow: {
+          populacja: belchatowGmina.population || "brak danych",
+          zasoby: belchatowGmina.resources || "brak danych",
+        },
+      },
+    };
+
+    // Use the enhanced context instead of the original
+    contextData = enhancedContext;
+    console.log("Enhanced AI context with localStorage data:", enhancedContext);
+  } catch (error) {
+    console.warn(
+      "Error fetching data from localStorage for AI context:",
+      error
+    );
+    // Continue with original contextData if there's an error
+  }
 
   // If we're running from a local file or API is disabled, don't attempt API call
   if (window.isLocalFileProtocol() || !apiEnabled) {
@@ -167,9 +245,63 @@ function generateLocalFallbackResponse(userInput, contextData) {
   return "Odpowiedź z trybu lokalnego (plik). Funkcjonalność ograniczona.";
 }
 
+/**
+ * Test function to verify that context data fetching is working properly
+ * @returns {Object} The current context data that would be sent to the API
+ */
+function testContextDataFetching() {
+  try {
+    // Get demographic data
+    const demographicData = JSON.parse(
+      localStorage.getItem("demographic") || "{}"
+    );
+
+    // Get resources data
+    const resourcesData = JSON.parse(localStorage.getItem("resources") || "[]");
+
+    // Get gmina data for Bełchatów (gminaA)
+    const gminasData = JSON.parse(localStorage.getItem("gminas") || "{}");
+    const belchatowGmina = gminasData.gminaA || {};
+
+    // Create enhanced context with the latest data
+    const enhancedContext = {
+      aktualneInformacjeGminy: {
+        demograficzne: {
+          liczbaMieszkancow: demographicData.residents || "brak danych",
+          turysci: demographicData.tourists || "brak danych",
+          wyborcyZarejestrowani:
+            demographicData.registeredVoters || "brak danych",
+          instytucjePubliczne:
+            demographicData.publicInstitutions || "brak danych",
+          populacjaZwierzat: demographicData.animalPopulations || "brak danych",
+          rezerwyZiarnaNaSiew:
+            demographicData.grainReservesForSowingTonnes || "brak danych",
+        },
+        zasoby: resourcesData.map((r) => ({
+          id: r.id,
+          nazwa: r.name,
+          typ: r.type,
+          kategoria: r.category,
+        })),
+        gminaBelchatow: {
+          populacja: belchatowGmina.population || "brak danych",
+          zasoby: belchatowGmina.resources || "brak danych",
+        },
+      },
+    };
+
+    console.log("Test context data:", enhancedContext);
+    return enhancedContext;
+  } catch (error) {
+    console.error("Error in testContextDataFetching:", error);
+    return { error: error.message };
+  }
+}
+
 // Expose to global scope
 window.realAI = {
   getConversationLog,
   addMessage,
   getResponse,
+  testContextDataFetching, // Add the test function to the exported object
 };

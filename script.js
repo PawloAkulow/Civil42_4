@@ -1180,6 +1180,8 @@ const LocalAdminDashboard = () => {
   const [crisisAlert, setCrisisAlert] = React.useState(false);
   const [aiPanelWidth, setAiPanelWidth] = React.useState(400); // Default width for AI panel
   const [isResizing, setIsResizing] = React.useState(false);
+  const [aiUserInput, setAiUserInput] = React.useState(""); // Added for completeness
+  const [aiIsTyping, setAiIsTyping] = React.useState(false); // Added for completeness
 
   const supplierOptions = [
     "Puszki&Słoiki S.A.",
@@ -2214,9 +2216,67 @@ const LocalAdminDashboard = () => {
       applyAiSuggestion(value);
     } else if (actionType === "accept_suggestion_cans") {
       applyAiSuggestion(value); // Value is an object {meat: X, veg: Y}
+    } else if (actionType === "demo_suggestion") {
+      // Handle demo scenario suggestion
+      if (window.scenarioPlayer && window.scenarioPlayer.activeScenario) {
+        // Apply suggestion from demo scenario
+        if (window.scenarioPlayer.activeScenario.id === "zakupAgregatow") {
+          // Special handling for generator purchase scenario
+          const purchaseId = 1; // Use the first row by default
+          setPurchases(
+            purchases.map((p) =>
+              p.id === purchaseId
+                ? {
+                    ...p,
+                    quantity: value.recommendedQuantity?.toString() || "3",
+                    isAiInput: false,
+                    isJoined: true,
+                    canJoin: false,
+                  }
+                : p
+            )
+          );
+          setAiAssistantLog((prev) => [
+            ...prev,
+            {
+              sender: "user",
+              message: `Zaakceptowano sugestię: ${
+                value.recommendedQuantity || 3
+              } agregatów`,
+            },
+          ]);
+
+          // Reset demo scenario if needed
+          setTimeout(() => {
+            if (window.scenarioPlayer) {
+              window.scenarioPlayer.resetScenario();
+            }
+          }, 1000);
+        }
+      }
+      setShowAiPanel(false); // Close panel after accepting
     }
     // Potentially add more AI actions here
   };
+
+  const addScenarioMessageToLog = React.useCallback(
+    (messageObject) => {
+      setShowAiPanel(true); // Ensure panel is open
+      // If a specific context is needed for scenario messages, set it here.
+      // For now, let's assume a generic 'scenario' context or leave currentAiContext as is.
+      // setCurrentAiContext({ type: 'scenario', purchaseId: null });
+      setAiAssistantLog((prevLog) => [...prevLog, messageObject]);
+    },
+    [setAiAssistantLog, setShowAiPanel]
+  ); // Dependencies for useCallback
+
+  // Expose the function to global window object
+  React.useEffect(() => {
+    window.addScenarioMessageToLog = addScenarioMessageToLog;
+    return () => {
+      delete window.addScenarioMessageToLog; // Clean up
+    };
+  }, [addScenarioMessageToLog]);
 
   const startResize = (mouseDownEvent) => {
     setIsResizing(true);

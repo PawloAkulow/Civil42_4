@@ -1,0 +1,59 @@
+{
+  "scenarios": [
+    {
+      "id": "zakupAgregatow",
+      "displayName": "Zakup agregatów prądotwórczych",
+      "uiTriggerContext": "strategicPurchasingPage",
+      "initialMonologue": "Rozpoczynam analizę dotyczącą strategicznego zakupu agregatów prądotwórczych dla Gminy Bełchatów. Przeprowadzę ją krok po kroku, zgodnie z procedurą, aby przedstawić optymalną rekomendację.",
+      "planSteps": [
+        {
+          "stepId": "inventoryCheck",
+          "cywilThoughtProcess": "Pierwszym krokiem jest sprawdzenie obecnego stanu magazynowego agregatów i ich parametrów.",
+          "mockData": {
+            "sprawne": 3,
+            "niesprawne": 2,
+            "w_naprawie": 1,
+            "w_calodobowym_uzyciu": 2,
+            "moc_sprawnych": "2 x 5kW, 1 x 7.5kW",
+            "moc_wszystkich": "5 x 5kW, 1 x 7.5kW"
+          },
+          "cywilPresentationPrompt": "Sprawdziłem stan posiadania agregatów przez Gminę Bełchatów:\n\n• Sprawne: {sprawne} szt. ({moc_sprawnych})\n• Niesprawne: {niesprawne} szt.\n• W naprawie: {w_naprawie} szt.\n• W ciągłym użyciu: {w_calodobowym_uzyciu} szt.\n\nŁącznie gmina posiada {w_calodobowym_uzyciu + sprawne + niesprawne + w_naprawie} agregatów ({moc_wszystkich}), ale tylko {sprawne} są w pełni sprawne i dostępne do użycia w sytuacji kryzysowej."
+        },
+        {
+          "stepId": "populationCheck",
+          "cywilThoughtProcess": "Następnie sprawdzę liczbę mieszkańców w gminie, aby oszacować potencjalne zapotrzebowanie zgodnie z wytycznymi.",
+          "mockData": {
+            "mieszkancy_stali": 11539,
+            "maksymalna_liczba_turystow": 1500,
+            "obiekty_krytyczne": 8,
+            "punkty_opieki_medycznej": 3
+          },
+          "cywilPresentationPrompt": "Zweryfikowałem dane demograficzne i infrastrukturalne dla gminy:\n\n• Stali mieszkańcy: {mieszkancy_stali} osób\n• Maksymalna liczba turystów w sezonie: do {maksymalna_liczba_turystow} osób\n• Obiekty infrastruktury krytycznej wymagające zasilania: {obiekty_krytyczne}\n• Punkty opieki medycznej: {punkty_opieki_medycznej}"
+        },
+        {
+          "stepId": "legalRequirements",
+          "cywilThoughtProcess": "Sprawdzę teraz wymagania prawne i zalecenia dotyczące ilości agregatów w stosunku do liczby mieszkańców oraz obiektów strategicznych.",
+          "mockData": {
+            "wymagania_na_osobe": "1 kW na 1000 mieszkańców",
+            "zalecenia_ministerstwa": "minimum 1 sprawny agregat 5kW na 2000 mieszkańców",
+            "zalecana_rezerwa": "30% ponad minimum",
+            "dodatkowe_obiekty": "2kW na każdy obiekt krytyczny",
+            "wymagana_moc_gmina": "17.5kW"
+          },
+          "cywilPresentationPrompt": "Analizuję wymagania i zalecenia prawne:\n\n• Wytyczne Ministerstwa Spraw Wewnętrznych: {zalecenia_ministerstwa}\n• Wymagana minimalna moc: {wymagania_na_osobe}\n• Zalecana rezerwa strategiczna: {zalecana_rezerwa}\n• Dodatkowe zapotrzebowanie na obiekty krytyczne: {dodatkowe_obiekty}\n\nDla Gminy Bełchatów, przy populacji stałej {mieszkancy_stali} osób, wymagana minimalna łączna moc agregatów wynosi {wymagana_moc_gmina}."
+        }
+      ],
+      "finalRecommendation": {
+        "mockData": {
+          "obecna_moc": "17.5kW",
+          "wymagana_moc": "25kW",
+          "dostepna_moc": "17.5kW",
+          "brakujaca_moc": "7.5kW",
+          "recommendedQuantity": 3
+        },
+        "cywilPresentationPrompt": "Na podstawie przeprowadzonej analizy stwierdzam:\n\n• Obecna dostępna moc (tylko sprawne agregaty): {dostepna_moc}\n• Wymagana moc wg wytycznych z uwzględnieniem rezerwy: {wymagana_moc}\n• Brakująca moc: {brakujaca_moc}\n\nRekomendacja: Zakup {recommendedQuantity} nowych agregatów prądotwórczych o mocy 3kW, co zapewni łączną moc 26.5kW i pokryje zapotrzebowanie gminy z odpowiednią rezerwą. Zakup mniejszych agregatów zwiększy elastyczność rozmieszczenia w sytuacjach kryzysowych.",
+        "suggestionButtonText": "Zaakceptuj rekomendację ({recommendedQuantity} szt.)"
+      }
+    }
+  ]
+}
