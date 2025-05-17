@@ -257,8 +257,47 @@ const mockAPI = {
   },
 };
 
+// Create a comprehensive assistant knowledge base
+function initializeAssistantKnowledge() {
+  try {
+    const demographic = getStorageData("demographic") || {};
+    const gminas = getStorageData("gminas") || {};
+    const resources = getStorageData("resources") || [];
+
+    // Combine data into a comprehensive knowledge base
+    const knowledgeBase = {
+      demographic,
+      gminas,
+      resources,
+      lastUpdated: new Date().toISOString(),
+    };
+
+    // Store in localStorage for the AI assistant to use
+    saveStorageData("assistantKnowledge", knowledgeBase);
+    console.log("AI Assistant knowledge base initialized");
+  } catch (error) {
+    console.error("Failed to initialize assistant knowledge:", error);
+  }
+}
+
 // Initialize on load
 mockAPI.init();
 
+// Initialize AI assistant knowledge base after loading data
+initializeAssistantKnowledge();
+
+// Add event listener to synchronize knowledge when data changes
+window.addEventListener("storage", (event) => {
+  if (["demographic", "gminas", "resources"].includes(event.key)) {
+    console.log(
+      `Storage changed for ${event.key}, updating assistant knowledge`
+    );
+    initializeAssistantKnowledge();
+  }
+});
+
 // Expose to global scope
 window.mockAPI = mockAPI;
+
+// Also expose the knowledge initializer for other modules to call
+window.initializeAssistantKnowledge = initializeAssistantKnowledge;

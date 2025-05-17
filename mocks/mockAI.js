@@ -448,13 +448,104 @@ const mockAI = {
   },
 
   /**
-   * Generate AI response to user input
+   * Get knowledge base data from localStorage
+   * @returns {Object} Knowledge base data or empty object if not found
+   */
+  getKnowledgeBase: () => {
+    try {
+      const knowledgeData = localStorage.getItem("assistantKnowledge");
+      if (knowledgeData) {
+        return JSON.parse(knowledgeData);
+      }
+
+      // Fallback: try to reconstruct from individual sources
+      const demographic = JSON.parse(
+        localStorage.getItem("demographic") || "{}"
+      );
+      const gminas = JSON.parse(localStorage.getItem("gminas") || "{}");
+      const resources = JSON.parse(localStorage.getItem("resources") || "[]");
+
+      return {
+        demographic,
+        gminas,
+        resources,
+        lastUpdated: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error("Error retrieving knowledge base:", error);
+      return {};
+    }
+  },
+
+  /**
+   * Generate AI response to user input with knowledge from all data sources
    * @param {string} userInput - User message
    * @returns {Promise<string>} Promise resolving to AI response
    */
   getResponse: async (userInput, contextType = "default") => {
     // Simulate network delay for "thinking"
     await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    console.log("Generating AI response with contextType:", contextType);
+
+    // Query-specific knowledge retrieval
+    const lowercaseInput = userInput.toLowerCase();
+    let specificKnowledge = [];
+
+    // Determine what kind of specific knowledge to add based on the query
+    if (lowercaseInput.includes("gmina") || lowercaseInput.includes("gminy")) {
+      try {
+        const gminas = JSON.parse(localStorage.getItem("gminas") || "{}");
+        specificKnowledge.push(
+          `Dane o gminach: ${Object.values(gminas)
+            .map((g) => `${g.name} (populacja: ${g.population})`)
+            .join(", ")}`
+        );
+      } catch (e) {
+        console.error("Error retrieving gmina data:", e);
+      }
+    }
+
+    if (lowercaseInput.includes("zasób") || lowercaseInput.includes("zasoby")) {
+      try {
+        const resources = JSON.parse(localStorage.getItem("resources") || "[]");
+        specificKnowledge.push(
+          `Kategorie zasobów: ${[
+            ...new Set(resources.map((r) => r.category)),
+          ].join(", ")}`
+        );
+      } catch (e) {
+        console.error("Error retrieving resource data:", e);
+      }
+    }
+
+    if (
+      lowercaseInput.includes("ludność") ||
+      lowercaseInput.includes("demograficzne")
+    ) {
+      try {
+        const demographic = JSON.parse(
+          localStorage.getItem("demographic") || "{}"
+        );
+        if (demographic.residents) {
+          specificKnowledge.push(
+            `Liczba mieszkańców: ${demographic.residents}`
+          );
+        }
+        if (demographic.animalPopulations) {
+          specificKnowledge.push(
+            `Populacje zwierząt: ${demographic.animalPopulations
+              .map((a) => `${a.name}: ${a.count}`)
+              .join(", ")}`
+          );
+        }
+      } catch (e) {
+        console.error("Error retrieving demographic data:", e);
+      }
+    }
+
+    // Get knowledge base data
+    const knowledgeBase = mockAI.getKnowledgeBase();
 
     // Define response patterns
     const resourceResponses = [
@@ -475,11 +566,31 @@ const mockAI = {
       "Analiza trendów wskazuje na możliwe {riskType} w nadchodzących miesiącach. Sugeruję przygotowanie planu prewencyjnego.",
     ];
 
+    // Information about demographic data from knowledge base
+    const demographicResponses = [
+      "Według danych demograficznych, gmina ma {residents} mieszkańców i średnio {tourists} turystów. Zapotrzebowanie na wodę pitną szacowane jest na {waterNeeded} litrów dziennie.",
+      "Dane o populacji zwierząt gospodarskich wskazują na {cattleCount} sztuk bydła, które wymagają {cattleFoodNeeded} kg paszy dziennie.",
+      "Zapasy ziarna na zasiew wynoszą {grainReserves} ton, co powinno wystarczyć na obsadzenie około {fieldHectares} hektarów pól.",
+    ];
+
+    // Information about gminas from knowledge base
+    const gminaResponses = [
+      "Gmina {gminaName} ma populację {gminaPopulation} mieszkańców i {resourcesCount} zarejestrowanych punktów zasobów.",
+      "Współpraca z sąsiednią gminą {neighborGmina} mogłaby zwiększyć efektywność w zarządzaniu zasobami wody w przypadku suszy.",
+      "Analiza punktów zasobów w gminie {gminaName} wskazuje na nierównomierne rozmieszczenie {resourceType}.",
+    ];
+
     // Determine response type based on user input
     let responsePool;
-    const lowercaseInput = userInput.toLowerCase();
 
+    // Choose response pool based on user query
     if (
+      lowercaseInput.includes("demograficzne") ||
+      lowercaseInput.includes("populacja") ||
+      lowercaseInput.includes("mieszkańcy")
+    ) {
+      responsePool = demographicResponses;
+    } else if (
       lowercaseInput.includes("zasób") ||
       lowercaseInput.includes("zasoby") ||
       lowercaseInput.includes("magazyn")
@@ -491,33 +602,82 @@ const mockAI = {
       lowercaseInput.includes("ewakuację")
     ) {
       responsePool = emergencyResponses;
+    } else if (
+      lowercaseInput.includes("gmina") ||
+      lowercaseInput.includes("gminy") ||
+      lowercaseInput.includes("samorząd")
+    ) {
+      responsePool = gminaResponses;
     } else {
       responsePool = generalResponses;
     }
 
     // Select random response and format it
     const rawResponse = getRandomItem(responsePool);
+
+    // Get real values from knowledge base if available
+    const gminasArray = knowledgeBase.gminas
+      ? Object.values(knowledgeBase.gminas)
+      : [];
+    const resourcesArray = knowledgeBase.resources || [];
+    const demographicData = knowledgeBase.demographic || {};
+
+    // Calculate animal food and water needs if data exists
+    let cattleCount = 0;
+    let cattleFoodNeeded = 0;
+    let cattleWaterNeeded = 0;
+
+    if (demographicData.animalPopulations) {
+      const cattle = demographicData.animalPopulations.find(
+        (animal) => animal.id === "cattle"
+      );
+      if (cattle) {
+        cattleCount = cattle.count;
+        cattleFoodNeeded = cattle.count * cattle.foodPerDayKg;
+        cattleWaterNeeded = cattle.count * cattle.waterPerDayL;
+      }
+    }
+
+    // Create replacement variables with real data when possible
     const formattedResponse = formatTemplate(rawResponse, {
-      resourceCount: Math.floor(Math.random() * 20) + 5,
+      resourceCount:
+        resourcesArray.length || Math.floor(Math.random() * 20) + 5,
       resourceType: getRandomItem([
         "wody pitnej",
         "żywności",
         "medykamentów",
         "paliwa",
       ]),
-      resourceName: getRandomItem([
-        "Magazyn A1",
-        "Magazyn B2",
-        "Studnia Gminna",
-        "Beczkowóz",
-      ]),
+      resourceName:
+        resourcesArray.length > 0
+          ? resourcesArray[Math.floor(Math.random() * resourcesArray.length)]
+              .name
+          : getRandomItem([
+              "Magazyn A1",
+              "Magazyn B2",
+              "Studnia Gminna",
+              "Beczkowóz",
+            ]),
       days: Math.floor(Math.random() * 10) + 2,
       emergencyType: getRandomItem([
         "powodzi",
         "długotrwałej suszy",
         "awarii sieci energetycznej",
       ]),
-      gminaName: getRandomItem(["Bełchatów", "Kleszczów", "Drużbice"]),
+      gminaName:
+        gminasArray.length > 0
+          ? gminasArray[Math.floor(Math.random() * gminasArray.length)].name
+          : getRandomItem(["Bełchatów", "Kleszczów", "Drużbice"]),
+      neighborGmina:
+        gminasArray.length > 1
+          ? gminasArray[Math.floor(Math.random() * gminasArray.length)].name
+          : "sąsiednia gmina",
+      gminaPopulation:
+        gminasArray.length > 0
+          ? gminasArray[Math.floor(Math.random() * gminasArray.length)]
+              .population
+          : Math.floor(Math.random() * 10000) + 5000,
+      resourcesCount: Math.floor(Math.random() * 15) + 5,
       areaName: getRandomItem([
         "południowym",
         "północnym",
@@ -530,13 +690,38 @@ const mockAI = {
         "problemy energetyczne",
         "zwiększone zapotrzebowanie na żywność",
       ]),
+      residents:
+        demographicData.residents || Math.floor(Math.random() * 15000) + 5000,
+      tourists:
+        demographicData.tourists || Math.floor(Math.random() * 500) + 100,
+      waterNeeded:
+        (demographicData.residents || 10000) * 3 +
+        (demographicData.tourists || 500) * 2,
+      cattleCount: cattleCount || Math.floor(Math.random() * 2000) + 500,
+      cattleFoodNeeded:
+        cattleFoodNeeded || Math.floor(Math.random() * 10000) + 5000,
+      grainReserves:
+        demographicData.grainReservesForSowingTonnes ||
+        Math.floor(Math.random() * 500) + 100,
+      fieldHectares: Math.floor(
+        (demographicData.grainReservesForSowingTonnes || 200) * 2.5
+      ),
     });
+
+    // Add knowledge to the response if available
+    let finalResponse = formattedResponse;
+    if (specificKnowledge.length > 0) {
+      // Add the specific knowledge to the response
+      finalResponse = `${formattedResponse}\n\nBazując na dostępnych danych:\n- ${specificKnowledge.join(
+        "\n- "
+      )}`;
+    }
 
     // Add to conversation log (now with contextType)
     await mockAI.addMessage("user", userInput, contextType);
-    await mockAI.addMessage("assistant", formattedResponse, contextType);
+    await mockAI.addMessage("assistant", finalResponse, contextType);
 
-    return formattedResponse;
+    return finalResponse;
   },
 
   /**

@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Centrum Monitorowania Zasobów - Wybór Roli</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>System Monitorowania Zasobów Gminy | SharkIT</title>
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Load styles first -->
     <link rel="stylesheet" href="styles.css" />
     <link
       rel="stylesheet"
@@ -12,6 +13,48 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Environment Setup - Must be loaded first -->
+    <script src="env-setup.js"></script>
+
+    <!-- Load data files directly for immediate access -->
+    <script>
+      // Load mock data directly
+      window.loadJsonFiles = async () => {
+        try {
+          // Load all mock data files
+          const files = [
+            { name: "demographic", key: "demographic" },
+            { name: "gminas", key: "gminas" },
+            { name: "resources", key: "resources" },
+          ];
+
+          for (const file of files) {
+            const response = await fetch(`mocks/${file.name}.json`);
+            if (response.ok) {
+              const data = await response.json();
+              localStorage.setItem(file.key, JSON.stringify(data));
+              console.log(
+                `Loaded ${file.name} data into localStorage directly`
+              );
+            } else {
+              console.error(`Failed to load ${file.name}.json`);
+            }
+          }
+
+          console.log("All mock data loaded successfully");
+          document.dispatchEvent(new CustomEvent("mockDataLoaded"));
+        } catch (error) {
+          console.error("Error loading mock data files:", error);
+        }
+      };
+
+      // Start loading immediately
+      window.loadJsonFiles();
+    </script>
+
+    <!-- Load libraries -->
     <script
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
@@ -20,10 +63,19 @@
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Include mock data and services before the main application script -->
+
+    <!-- Load mock data and mock services -->
     <script src="mocks/mockData.js"></script>
+    <script src="mocks/routerHelper.js"></script>
+
+    <!-- Load mock API and AI implementations -->
     <script src="mocks/mockAPI.js"></script>
     <script src="mocks/mockAI.js"></script>
+    <script src="mocks/realAI.js"></script>
+    <script src="mocks/openaiProxy.js"></script>
+
+    <!-- Main application script loaded last -->
+    <script src="script.js"></script>
   </head>
   <body>
     <div id="root">
@@ -46,6 +98,11 @@
     <!-- React handles the panel toggling -->
 
     <script type="text/babel">
+      // Wait for mock data to be fully loaded before initializing React app
+      document.addEventListener("mockDataLoaded", () => {
+        console.log("Mock data loaded, initializing React app");
+      });
+
       // The application uses mock data from the mocks/mockData.js file
       // All previously hardcoded mock data has been moved to JSON files in the mocks directory
       // Icons - using inline SVGs for self-contained file
@@ -1938,11 +1995,16 @@
             "Context:",
             contextType
           );
-          // Toggle panel if already showing
+
+          // If no contextType is provided, default to freestyle (real AI)
+          const effectiveContextType = contextType || "freestyle";
+          const isFreestyleMode = effectiveContextType === "freestyle";
+
+          // Toggle panel if already showing with the same context
           if (
             showAiPanel &&
             currentAiContext &&
-            currentAiContext.type === contextType
+            currentAiContext.type === effectiveContextType
           ) {
             setShowAiPanel(false);
             console.log("Setting showAiPanel to false");
@@ -1953,67 +2015,94 @@
           setShowAiPanel(true);
           console.log("Setting showAiPanel to true");
 
-          // Create context based on resource info
+          // Create context based on resource info and context type
           const context = {
-            type: contextType || "resources",
+            type: effectiveContextType,
             resourceName: resourceInfo.name || "zasobu",
             resourceType: resourceInfo.category || "general",
             gminaName: resourceInfo.gmina || "Bełchatów",
             purchaseId: resourceInfo.purchaseId,
+            // For freestyle mode, set mockCompleted to true to use realAI immediately
+            // For other modes, set to false to start with mockAI
+            mockCompleted: isFreestyleMode ? true : false,
+            data: resourceInfo, // Store any additional context data
           };
 
           setCurrentAiContext(context);
 
-          // Use mockAI to get suggestions
-          mockAI.getSuggestions(context, 3).then((suggestions) => {
-            setAiSuggestions(
-              suggestions.map((s) => ({
-                label: s.title,
-                value: s.id,
-                description: s.description,
-              }))
-            );
-          });
+          // For freestyle mode, we skip suggestions and analysis plan
+          if (!isFreestyleMode) {
+            // Use mockAI to get suggestions (only for mock modes)
+            mockAI.getSuggestions(context, 3).then((suggestions) => {
+              setAiSuggestions(
+                suggestions.map((s) => ({
+                  label: s.title,
+                  value: s.id,
+                  description: s.description,
+                }))
+              );
+            });
 
-          // Determine scenario based on context type
-          let scenarioType = contextType;
+            // Determine scenario based on context type (only for mock modes)
+            let scenarioType = effectiveContextType;
 
-          // Map generic types to more specific scenarios
-          if (!scenarioType || scenarioType === "resources") {
-            if (context.resourceType === "energetics") {
-              scenarioType = "powerOutage";
-            } else if (
-              context.resourceType === "water" ||
-              context.resourceType === "technical_water"
-            ) {
-              scenarioType = "waterShortage";
-            } else if (context.resourceType === "shelter") {
-              scenarioType = "evacuation";
-            } else {
-              scenarioType = "resources";
+            // Map generic types to more specific scenarios
+            if (scenarioType === "resources") {
+              if (context.resourceType === "energetics") {
+                scenarioType = "powerOutage";
+              } else if (
+                context.resourceType === "water" ||
+                context.resourceType === "technical_water"
+              ) {
+                scenarioType = "waterShortage";
+              } else if (context.resourceType === "shelter") {
+                scenarioType = "evacuation";
+              } else {
+                scenarioType = "resources";
+              }
             }
+
+            // Get analysis plan based on scenario type (only for mock modes)
+            mockAI.getAnalysisPlan(scenarioType).then((plan) => {
+              setAiAnalysisPlan(plan.map((step) => step.description));
+            });
+
+            // Load conversation history with the appropriate context from mockAI
+            mockAI.getConversationLog(effectiveContextType).then((log) => {
+              setAiAssistantLog(
+                log.map((entry) => ({
+                  sender: entry.role === "assistant" ? "ai" : entry.role,
+                  message: entry.content,
+                  timestamp: entry.timestamp
+                    ? new Date(entry.timestamp).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "",
+                }))
+              );
+            });
+          } else {
+            // For freestyle mode, clear the suggestions and analysis plan
+            setAiSuggestions([]);
+            setAiAnalysisPlan([]);
+
+            // Load conversation from realAI
+            realAI.getConversationLog(effectiveContextType).then((log) => {
+              setAiAssistantLog(
+                log.map((entry) => ({
+                  sender: entry.role === "assistant" ? "ai" : entry.role,
+                  message: entry.content,
+                  timestamp: entry.timestamp
+                    ? new Date(entry.timestamp).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "",
+                }))
+              );
+            });
           }
-
-          // Get analysis plan based on scenario type
-          mockAI.getAnalysisPlan(scenarioType).then((plan) => {
-            setAiAnalysisPlan(plan.map((step) => step.description));
-          });
-
-          // Load conversation history with the appropriate context
-          mockAI.getConversationLog(contextType).then((log) => {
-            setAiAssistantLog(
-              log.map((entry) => ({
-                sender: entry.role === "assistant" ? "ai" : entry.role,
-                message: entry.content,
-                timestamp: entry.timestamp
-                  ? new Date(entry.timestamp).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : "", // Added formatting
-              }))
-            );
-          });
         };
 
         const applyAiSuggestion = (value) => {
@@ -2076,29 +2165,140 @@
           } else if (actionType === "accept_suggestion_cans") {
             applyAiSuggestion(value); // Value is an object {meat: X, veg: Y}
           } else if (actionType === "send_message") {
-            // Send user message to AI assistant
-            // mockAI.addMessage is now called internally by mockAI.getResponse for the user message.
-            // mockAI.getResponse will also call mockAI.addMessage for the assistant's response.
-            // Both will use the contextType to save to the correct local storage entry.
+            // First, check if we should use realAI instead of mockAI
+            const useRealAI =
+              currentAiContext?.type === "freestyle" ||
+              currentAiContext?.mockCompleted === true;
 
-            mockAI.getResponse(value, currentAiContext.type).then(() => {
-              // After getResponse completes, the log in localStorage (for the current context) is fully updated.
-              // Now, fetch that complete log and update the React state.
-              mockAI.getConversationLog(currentAiContext.type).then((log) => {
-                setAiAssistantLog(
-                  log.map((entry) => ({
-                    sender: entry.role === "assistant" ? "ai" : entry.role,
-                    message: entry.content,
-                    timestamp: entry.timestamp
-                      ? new Date(entry.timestamp).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "", // Added formatting
-                  }))
-                );
+            // Determine which AI module to use
+            const aiModule = useRealAI ? window.realAI : window.mockAI;
+
+            if (useRealAI) {
+              // Get the demographic data for context enhancement
+              mockAPI.demographic.get().then((demographicData) => {
+                // Get current conversation history
+                realAI
+                  .getConversationLog(currentAiContext?.type || "freestyle")
+                  .then((history) => {
+                    // Add user message to the log first
+                    realAI
+                      .addMessage(
+                        "user",
+                        value,
+                        currentAiContext?.type || "freestyle",
+                        history
+                      )
+                      .then((updatedLog) => {
+                        // Update the UI immediately with the user message
+                        setAiAssistantLog(
+                          updatedLog.map((entry) => ({
+                            sender:
+                              entry.role === "assistant" ? "ai" : entry.role,
+                            message: entry.content,
+                            timestamp: entry.timestamp
+                              ? new Date(entry.timestamp).toLocaleTimeString(
+                                  [],
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  }
+                                )
+                              : "",
+                          }))
+                        );
+
+                        // Get response from AI
+                        realAI
+                          .getResponse(value, updatedLog, {
+                            demographic: demographicData,
+                            contextType: currentAiContext?.type || "freestyle",
+                            resourceInfo: currentAiContext?.resourceName
+                              ? {
+                                  name: currentAiContext.resourceName,
+                                  type: currentAiContext.resourceType,
+                                }
+                              : null,
+                          })
+                          .then((response) => {
+                            // Add AI response to the log
+                            realAI
+                              .addMessage(
+                                "assistant",
+                                response,
+                                currentAiContext?.type || "freestyle",
+                                updatedLog
+                              )
+                              .then((finalLog) => {
+                                // Update UI with complete conversation
+                                setAiAssistantLog(
+                                  finalLog.map((entry) => ({
+                                    sender:
+                                      entry.role === "assistant"
+                                        ? "ai"
+                                        : entry.role,
+                                    message: entry.content,
+                                    timestamp: entry.timestamp
+                                      ? new Date(
+                                          entry.timestamp
+                                        ).toLocaleTimeString([], {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })
+                                      : "",
+                                  }))
+                                );
+                              });
+                          });
+                      });
+                  });
               });
-            });
+            } else {
+              // Use mockAI for scripted contextual responses
+              mockAI.getResponse(value, currentAiContext.type).then(() => {
+                // After getResponse completes, the log in localStorage (for the current context) is fully updated.
+                // Now, fetch that complete log and update the React state.
+                mockAI.getConversationLog(currentAiContext.type).then((log) => {
+                  // Define different thresholds for different context types
+                  let mockScriptThreshold = 6; // Default threshold
+
+                  // We can define custom thresholds for specific scripts if needed
+                  if (currentAiContext?.type === "generators") {
+                    mockScriptThreshold = 6;
+                  } else if (currentAiContext?.type === "cans") {
+                    mockScriptThreshold = 8;
+                  } else if (currentAiContext?.type === "emergency") {
+                    mockScriptThreshold = 5;
+                  }
+
+                  // Check if this is the last message in the mock script
+                  const isLastMockMessage =
+                    currentAiContext?.type !== "freestyle" &&
+                    log.length >= mockScriptThreshold;
+
+                  // If this is the last message, set a flag to transition to realAI for future messages
+                  if (isLastMockMessage) {
+                    setCurrentAiContext((prev) => ({
+                      ...prev,
+                      mockCompleted: true,
+                    }));
+                  }
+
+                  // Update the UI
+                  setAiAssistantLog(
+                    log.map((entry) => ({
+                      sender: entry.role === "assistant" ? "ai" : entry.role,
+                      message: entry.content,
+                      timestamp: entry.timestamp
+                        ? new Date(entry.timestamp).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "",
+                    }))
+                  );
+                });
+              });
+            }
           }
         };
 
@@ -2140,11 +2340,16 @@
             <button
               className="ai-floating-button"
               onClick={() => {
-                const newState = !showAiPanel;
-                setShowAiPanel(newState);
+                // If panel is not open, open it in freestyle mode (direct to real AI)
+                if (!showAiPanel) {
+                  toggleAiPanel("freestyle");
+                } else {
+                  // If panel is open, just close it
+                  setShowAiPanel(false);
+                }
                 console.log(
                   "Floating button clicked, new showAiPanel state is:",
-                  newState
+                  !showAiPanel
                 );
               }}
               aria-label="Asystent AI"
@@ -3678,6 +3883,7 @@
                         src="SharkIT-assistant.png"
                         alt="SharkIT Assistant"
                         className="h-6 w-6 mr-2"
+                        style={{ cursor: "default" }}
                       />
                       Asystent AI
                     </h3>
@@ -3734,18 +3940,29 @@
                     </div>
                   </div>
                   <div className="flex-1 p-4 overflow-y-auto space-y-3 text-sm">
-                    <p className="font-semibold">
-                      Kontekst:{" "}
-                      {currentAiContext?.type === "generators"
-                        ? "Zakup agregatów"
-                        : currentAiContext?.type === "cans"
-                        ? "Zakup konserw"
-                        : currentAiContext?.type === "emergency"
-                        ? "Sytuacja kryzysowa"
-                        : currentAiContext?.type === "resources"
-                        ? "Zasoby gminy"
-                        : "Ogólny"}
-                    </p>
+                    <div className="space-y-1">
+                      <p className="font-semibold">
+                        Kontekst:{" "}
+                        {currentAiContext?.type === "generators"
+                          ? "Zakup agregatów"
+                          : currentAiContext?.type === "cans"
+                          ? "Zakup konserw"
+                          : currentAiContext?.type === "emergency"
+                          ? "Sytuacja kryzysowa"
+                          : currentAiContext?.type === "resources"
+                          ? "Zasoby gminy"
+                          : currentAiContext?.type === "freestyle"
+                          ? "Swobodna rozmowa"
+                          : "Ogólny"}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Model:{" "}
+                        {currentAiContext?.type === "freestyle" ||
+                        currentAiContext?.mockCompleted
+                          ? "GPT-4.1 Nano"
+                          : "Asystent Demo"}
+                      </p>
+                    </div>
 
                     {/* AI Analysis Plan */}
                     {aiAnalysisPlan.length > 0 && (

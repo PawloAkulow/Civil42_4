@@ -1,3 +1,17 @@
+// We've moved the process.env initialization to env-setup.js which loads first
+// This is a fallback in case there are any issues with env-setup.js
+if (typeof process === "undefined" || !process.env) {
+  window.process = window.process || {
+    env: {
+      OPENAI_API_KEY: "",
+      AI_MODEL: "gpt-4.1-nano",
+      MOCK_DELAY: "300",
+      NODE_ENV: "development",
+    },
+  };
+  console.log("Environment variables initialized (fallback in script.js)");
+}
+
 // Icons - using inline SVGs for self-contained file
 const UserIcon = () => (
   <svg
