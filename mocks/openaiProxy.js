@@ -11,36 +11,34 @@ if (typeof process === "undefined" || !process.env) {
   window.process = window.process || {
     env: {
       NODE_ENV: "development",
-      OPENAI_API_KEY: "",
+      OPENAI_API_KEY: undefined, // Align with env-setup.js potential state
       AI_MODEL: "gpt-4.1-nano",
       MOCK_DELAY: "300",
     },
   };
 }
 
-// Get OpenAI API key from environment variable
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
-
 // Use the global isLocalFileProtocol function - no local declaration
 // This prevents duplicate variable declaration errors
 
 // Check if we have a valid API key
 const isApiKeyValid = () => {
+  const key = window.process?.env?.OPENAI_API_KEY; // Fetch current value
   return (
-    OPENAI_API_KEY &&
-    OPENAI_API_KEY.startsWith("sk-") &&
-    OPENAI_API_KEY.length > 20 &&
+    key &&
+    key.startsWith("sk-") &&
+    key.length > 20 &&
     !window.isLocalFileProtocol() // Use the global function with window prefix
   );
 };
 
 // System prompt template with guardrails for the AI assistant
 const systemPromptTemplate = `
-Jesteś Sharky - zaawansowanym asystentem AI stoworzonym dla pracowników Urzędu Gminy. 
+Jesteś Cywil - zaawansowanym asystentem AI stoworzonym dla pracowników Urzędu Gminy. 
 Twoja główna funkcja to pomaganie w monitorowaniu zasobów gminy i wsparcie w sytuacjach kryzysowych.
 
 ### TWOJA TOŻSAMOŚĆ:
-- Zawsze identyfikuj się jako "Sharky" - asystent AI systemu SharkIT
+- Zawsze identyfikuj się jako "Cywil" - asystent AI systemu monitorowania zasobów gminy
 - Używaj polskiego języka, profesjonalnie ale przyjaźnie
 - Jesteś ekspertem w zarządzaniu zasobami gminy i sytuacjach kryzysowych
 - Dajesz praktyczne i konkretne odpowiedzi na pytania związane z zarządzaniem gminą
@@ -170,6 +168,11 @@ const getMockOpenAIResponse = async (requestData) => {
  * @returns {Promise<Object>} Promise resolving to response object
  */
 const getRealOpenAIResponse = async (requestData) => {
+  const apiKey = window.process?.env?.OPENAI_API_KEY; // Fetch current value
+  if (!apiKey) {
+    console.error("OpenAI API Key is not available in getRealOpenAIResponse.");
+    throw new Error("OpenAI API Key is missing.");
+  }
   // Create context string from provided data
   let contextString = "";
   if (requestData.contextData) {
@@ -209,7 +212,7 @@ const getRealOpenAIResponse = async (requestData) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`, // Use the fetched apiKey
       },
       body: JSON.stringify({
         model: "gpt-4.1-nano", // Use the specified model

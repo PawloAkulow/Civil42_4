@@ -31,7 +31,7 @@ const getConversationLog = async (
     {
       role: "assistant",
       content:
-        "Witaj! Jestem Sharky, asystentem AI dla systemu monitorowania zasobów gminy. W czym mogę pomóc?",
+        "Witaj! Jestem Cywil, asystentem AI dla systemu monitorowania zasobów gminy. W czym mogę pomóc?",
       timestamp: new Date().toISOString(),
     },
   ];
@@ -146,6 +146,19 @@ const getResponse = async (
     );
   }
 };
+
+// Define the missing fallback function
+function generateLocalFallbackResponse(userInput, contextData) {
+  console.log("Using generateLocalFallbackResponse in realAI.js", {
+    userInput,
+    contextData,
+  });
+  // Simple fallback, can be expanded later
+  if (userInput && userInput.toLowerCase().includes("pomoc")) {
+    return "Działam w trybie lokalnym (plik). Podstawowa pomoc jest dostępna. Jak mogę asystować?";
+  }
+  return "Odpowiedź z trybu lokalnego (plik). Funkcjonalność ograniczona.";
+}
 
 // Expose to global scope
 window.realAI = {
