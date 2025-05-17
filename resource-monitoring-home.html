@@ -2005,6 +2005,12 @@
               log.map((entry) => ({
                 sender: entry.role === "assistant" ? "ai" : entry.role,
                 message: entry.content,
+                timestamp: entry.timestamp
+                  ? new Date(entry.timestamp).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "", // Added formatting
               }))
             );
           });
@@ -2039,7 +2045,11 @@
 
             // Add user message to the conversation log
             mockAI
-              .addMessage("user", `Zaakceptowano sugestię: ${suggestionText}`)
+              .addMessage(
+                "user",
+                `Zaakceptowano sugestię: ${suggestionText}`,
+                currentAiContext.type
+              )
               .then((updatedLog) => {
                 // Transform the log format to match the application's format
                 setAiAssistantLog(
@@ -2047,8 +2057,11 @@
                     sender: entry.role === "assistant" ? "ai" : entry.role,
                     message: entry.content,
                     timestamp: entry.timestamp
-                      ? new Date(entry.timestamp).toLocaleTimeString()
-                      : "",
+                      ? new Date(entry.timestamp).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "", // Added formatting
                   }))
                 );
               });
@@ -2064,29 +2077,26 @@
             applyAiSuggestion(value); // Value is an object {meat: X, veg: Y}
           } else if (actionType === "send_message") {
             // Send user message to AI assistant
-            mockAI.addMessage("user", value).then((updatedLog) => {
-              // Transform the log format to match the application's format
-              setAiAssistantLog(
-                updatedLog.map((entry) => ({
-                  sender: entry.role === "assistant" ? "ai" : entry.role,
-                  message: entry.content,
-                  timestamp: entry.timestamp
-                    ? new Date(entry.timestamp).toLocaleTimeString()
-                    : "",
-                }))
-              );
+            // mockAI.addMessage is now called internally by mockAI.getResponse for the user message.
+            // mockAI.getResponse will also call mockAI.addMessage for the assistant's response.
+            // Both will use the contextType to save to the correct local storage entry.
 
-              // Get AI response
-              mockAI.getResponse(value).then((response) => {
-                // Response is already added to the log by mockAI.getResponse
-                setAiAssistantLog((prevLog) => [
-                  ...prevLog,
-                  {
-                    sender: "ai",
-                    message: response,
-                    timestamp: new Date().toLocaleTimeString(),
-                  },
-                ]);
+            mockAI.getResponse(value, currentAiContext.type).then(() => {
+              // After getResponse completes, the log in localStorage (for the current context) is fully updated.
+              // Now, fetch that complete log and update the React state.
+              mockAI.getConversationLog(currentAiContext.type).then((log) => {
+                setAiAssistantLog(
+                  log.map((entry) => ({
+                    sender: entry.role === "assistant" ? "ai" : entry.role,
+                    message: entry.content,
+                    timestamp: entry.timestamp
+                      ? new Date(entry.timestamp).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "", // Added formatting
+                  }))
+                );
               });
             });
           }
@@ -3663,23 +3673,78 @@
                   {" "}
                   {/* Added pl-2 to not overlap resizer, and h-full */}
                   <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-                    <h4 className="font-semibold text-lg">Asystent AI</h4>
-                    <button
-                      onClick={() => {
-                        setShowAiPanel(false);
-                        console.log("AI Assistant closed via X button");
-                      }}
-                      className="text-gray-400 hover:text-white w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-700 transition-colors"
-                    >
-                      &times;
-                    </button>
+                    <h3 className="text-lg font-semibold flex items-center">
+                      <img
+                        src="SharkIT-assistant.png"
+                        alt="SharkIT Assistant"
+                        className="h-6 w-6 mr-2"
+                      />
+                      Asystent AI
+                    </h3>
+                    <div className="flex items-center space-x-2">
+                      {/* Add recycle bin button */}
+                      <button
+                        onClick={() => {
+                          if (
+                            confirm(
+                              "Czy na pewno chcesz wyczyścić historię konwersacji?"
+                            )
+                          ) {
+                            // Clear localStorage for current context
+                            const contextKey = `aiConversationLog_${
+                              currentAiContext?.type || "default"
+                            }`;
+                            localStorage.removeItem(contextKey);
+                            // Reset conversation in state
+                            setAiAssistantLog([
+                              {
+                                sender: "ai",
+                                message:
+                                  "Witaj! Jestem asystentem AI dla systemu monitorowania zasobów. W czym mogę pomóc?",
+                                timestamp: new Date().toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }),
+                              },
+                            ]);
+                          }
+                        }}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                        title="Wyczyść historię konwersacji"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setShowAiPanel(false)}
+                        className="text-gray-400 hover:text-white transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
                   <div className="flex-1 p-4 overflow-y-auto space-y-3 text-sm">
                     <p className="font-semibold">
                       Kontekst:{" "}
                       {currentAiContext?.type === "generators"
                         ? "Zakup agregatów"
-                        : "Zakup konserw"}
+                        : currentAiContext?.type === "cans"
+                        ? "Zakup konserw"
+                        : currentAiContext?.type === "emergency"
+                        ? "Sytuacja kryzysowa"
+                        : currentAiContext?.type === "resources"
+                        ? "Zasoby gminy"
+                        : "Ogólny"}
                     </p>
 
                     {/* AI Analysis Plan */}

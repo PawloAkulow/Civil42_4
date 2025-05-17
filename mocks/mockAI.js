@@ -399,15 +399,24 @@ const mockAI = {
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Get from localStorage or use default
-    const storedLog = localStorage.getItem("aiConversationLog");
+    const contextKey = `aiConversationLog_${contextType}`; // Use context-specific key
+    const storedLog = localStorage.getItem(contextKey);
     if (storedLog) {
       return JSON.parse(storedLog);
     }
 
-    // Return template conversation based on context type
-    const templates =
-      conversationTemplates[contextType] || conversationTemplates.default;
-    return [...templates];
+    // Return minimal welcome message instead of template conversations
+    const initialLog = [
+      {
+        role: "assistant",
+        content:
+          "Witaj! Jestem asystentem AI dla systemu monitorowania zasobów. W czym mogę pomóc?",
+        timestamp: new Date().toISOString(),
+      },
+    ];
+
+    localStorage.setItem(contextKey, JSON.stringify(initialLog)); // Save initial log
+    return initialLog;
   },
 
   /**
@@ -416,12 +425,12 @@ const mockAI = {
    * @param {string} content - Message content
    * @returns {Promise<Array>} Promise resolving to updated conversation log
    */
-  addMessage: async (role, content) => {
+  addMessage: async (role, content, contextType = "default") => {
     // Simulate network delay
     await new Promise((resolve) => setTimeout(resolve, 300));
 
-    // Get current log
-    let log = await mockAI.getConversationLog();
+    // Get current log for the given context
+    let log = await mockAI.getConversationLog(contextType);
 
     // Add new message
     const newMessage = {
@@ -431,8 +440,9 @@ const mockAI = {
     };
     log.push(newMessage);
 
-    // Save updated log
-    localStorage.setItem("aiConversationLog", JSON.stringify(log));
+    // Save updated log to the context-specific key
+    const contextKey = `aiConversationLog_${contextType}`;
+    localStorage.setItem(contextKey, JSON.stringify(log));
 
     return log;
   },
@@ -442,7 +452,7 @@ const mockAI = {
    * @param {string} userInput - User message
    * @returns {Promise<string>} Promise resolving to AI response
    */
-  getResponse: async (userInput) => {
+  getResponse: async (userInput, contextType = "default") => {
     // Simulate network delay for "thinking"
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
@@ -522,9 +532,9 @@ const mockAI = {
       ]),
     });
 
-    // Add to conversation log
-    await mockAI.addMessage("user", userInput);
-    await mockAI.addMessage("assistant", formattedResponse);
+    // Add to conversation log (now with contextType)
+    await mockAI.addMessage("user", userInput, contextType);
+    await mockAI.addMessage("assistant", formattedResponse, contextType);
 
     return formattedResponse;
   },
