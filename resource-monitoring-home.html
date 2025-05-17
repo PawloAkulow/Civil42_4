@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>System Monitorowania Zasobów Gminy | SharkIT</title>
-    <!-- Load styles first -->
+    <title>Centrum monitorowania zasobów</title>
+    <link rel="icon" href="ico.png" type="image/png" />
+    <!-- Updated Favicon to local ico.png -->
     <link rel="stylesheet" href="styles.css" />
     <link
       rel="stylesheet"
@@ -4291,10 +4292,19 @@
         }
       };
 
-      // Render the app
+      // Render the app, ensuring it only happens once
       const container = document.getElementById("root");
-      const root = ReactDOM.createRoot(container);
-      root.render(<App />);
+      if (container && !window._reactRootInitialized) {
+        // Check global flag
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />); // This will render the App component defined in this inline script
+        window._reactRootInitialized = true; // Set global flag
+        console.log("INFO: React root for #root initialized by inline script.");
+      } else if (container && window._reactRootInitialized) {
+        console.log(
+          "INFO: React root for #root was already initialized. Inline script is skipping re-initialization."
+        );
+      }
     </script>
   </body>
 </html>
