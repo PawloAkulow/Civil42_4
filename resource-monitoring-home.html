@@ -1178,6 +1178,7 @@
       const LocalAdminDashboard = () => {
         const [activeTab, setActiveTab] = React.useState("dashboard"); // Changed for diagnostics
         const [sidebarOpen, setSidebarOpen] = React.useState(true);
+        const [devToolsOpen, setDevToolsOpen] = React.useState(false); // Added for developer tools submenu
         const [animalManagementStrategy, setAnimalManagementStrategy] =
           React.useState("feed"); // 'feed', 'food_source', 'ignore'
         const mapRef = React.useRef(null); // Ref to store the map instance
@@ -2523,6 +2524,86 @@
                     <BarChart3Icon />
                     {sidebarOpen && <span className="ml-3">Raporty</span>}
                   </button>
+                  {/* Developer Tools Section */}
+                  <div className="mt-4 border-t border-gray-700">
+                    <button
+                      onClick={() => {
+                        // Toggle the developer tools submenu
+                        setDevToolsOpen(!devToolsOpen);
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 text-white transition-colors hover:bg-blue-800"
+                      title="Narzędzia programistyczne"
+                    >
+                      <div className="flex items-center">
+                        <SlidersHorizontalIcon />
+                        {sidebarOpen && (
+                          <span className="ml-3">
+                            Narzędzia programistyczne
+                          </span>
+                        )}
+                      </div>
+                      {sidebarOpen && (
+                        <span className="text-xs">
+                          {devToolsOpen ? "▼" : "▶"}
+                        </span>
+                      )}
+                    </button>
+
+                    {/* Submenu - only visible when devToolsOpen is true */}
+                    {devToolsOpen && (
+                      <div className="bg-gray-800">
+                        <button
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                "Czy na pewno chcesz wyczyścić wszystkie dane lokalne i przeładować aplikację?"
+                              )
+                            ) {
+                              localStorage.clear();
+                              if (
+                                typeof window.initializeKnowledgeBase ===
+                                "function"
+                              ) {
+                                window
+                                  .initializeKnowledgeBase()
+                                  .then(() => {
+                                    alert(
+                                      "Dane lokalne zostały zresetowane. Aplikacja zostanie przeładowana."
+                                    );
+                                    window.location.reload();
+                                  })
+                                  .catch((error) => {
+                                    console.error(
+                                      "Błąd podczas ponownej inicjalizacji bazy wiedzy:",
+                                      error
+                                    );
+                                    alert(
+                                      "Wystąpił błąd podczas resetowania danych. Sprawdź konsolę."
+                                    );
+                                    window.location.reload();
+                                  });
+                              } else {
+                                console.error(
+                                  "Funkcja window.initializeKnowledgeBase nie jest dostępna."
+                                );
+                                alert(
+                                  "Nie można w pełni zresetować danych: funkcja inicjalizacyjna jest niedostępna. Dane lokalne zostały wyczyszczone. Aplikacja zostanie przeładowana."
+                                );
+                                window.location.reload();
+                              }
+                            }
+                          }}
+                          className="w-full flex items-center px-6 py-2 text-yellow-300 transition-colors hover:bg-red-700 hover:text-white"
+                          title="Resetuj Dane Lokalne"
+                        >
+                          <RefreshCwIcon />
+                          {sidebarOpen && (
+                            <span className="ml-3">Resetuj Dane Lokalne</span>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* SharkIT Logo at the bottom */}
@@ -4292,19 +4373,38 @@
         }
       };
 
-      // Render the app, ensuring it only happens once
-      const container = document.getElementById("root");
-      if (container && !window._reactRootInitialized) {
-        // Check global flag
-        const root = ReactDOM.createRoot(container);
-        root.render(<App />); // This will render the App component defined in this inline script
-        window._reactRootInitialized = true; // Set global flag
-        console.log("INFO: React root for #root initialized by inline script.");
-      } else if (container && window._reactRootInitialized) {
-        console.log(
-          "INFO: React root for #root was already initialized. Inline script is skipping re-initialization."
-        );
-      }
+      // Function to initialize React app with delay to allow script.js to load first
+      const initializeReactApp = () => {
+        const container = document.getElementById("root");
+
+        // If script.js has already rendered, or is available and will render soon, don't render from inline script
+        if (window._reactAppRenderedByScriptJs || window.scriptJsLoaded) {
+          console.log(
+            "INFO: Inline script detected script.js is loaded or has rendered. Skipping inline initialization."
+          );
+          return;
+        }
+
+        // Only initialize if no other script has initialized React
+        if (container && !window._reactRootInitialized) {
+          console.log(
+            "INFO: script.js not detected, initializing from inline script."
+          );
+          const root = ReactDOM.createRoot(container);
+          root.render(<App />); // This will render the App component defined in this inline script
+          window._reactRootInitialized = true; // Set global flag
+          console.log(
+            "INFO: React root for #root initialized by inline script."
+          );
+        } else if (container && window._reactRootInitialized) {
+          console.log(
+            "INFO: React root for #root was already initialized. Inline script is skipping re-initialization."
+          );
+        }
+      };
+
+      // Add a small delay to allow script.js to initialize first
+      setTimeout(initializeReactApp, 500);
     </script>
   </body>
 </html>

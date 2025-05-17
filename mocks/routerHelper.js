@@ -118,9 +118,6 @@ const loadEnvVars = async () => {
 
 // Setup function to initialize the router
 const setupRouter = async () => {
-  // Load environment variables
-  // await loadEnvVars(); // REMOVED THIS LINE
-
   // Log that we're ready
   console.log("Mock API Router initialized");
 };

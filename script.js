@@ -12,6 +12,10 @@ if (typeof process === "undefined" || !process.env) {
   console.log("Environment variables initialized (fallback in script.js)");
 }
 
+// Identify that script.js has loaded - Added to help with initialization sequencing
+window.scriptJsLoaded = true;
+console.log("INFO: script.js has loaded.");
+
 // Create a fallback for realAI if it doesn't exist
 if (typeof window.realAI === "undefined") {
   console.log("Creating fallback for realAI in script.js");
@@ -1182,6 +1186,43 @@ const LocalAdminDashboard = () => {
   const [aiUserInput, setAiUserInput] = React.useState(""); // Added for completeness
   const [aiIsTyping, setAiIsTyping] = React.useState(false); // Added for completeness
   const [isMouseOverAiPanel, setIsMouseOverAiPanel] = React.useState(false);
+
+  const handleClearAndReloadLocalStorage = () => {
+    if (
+      window.confirm(
+        "Czy na pewno chcesz wyczyścić wszystkie dane lokalne i przeładować aplikację?"
+      )
+    ) {
+      localStorage.clear();
+      if (typeof window.initializeKnowledgeBase === "function") {
+        window
+          .initializeKnowledgeBase()
+          .then(() => {
+            alert(
+              "Dane lokalne zostały zresetowane. Aplikacja zostanie przeładowana."
+            );
+            window.location.reload();
+          })
+          .catch((error) => {
+            console.error(
+              "Błąd podczas ponownej inicjalizacji bazy wiedzy:",
+              error
+            );
+            alert("Wystąpił błąd podczas resetowania danych. Sprawdź konsolę.");
+            // Even if re-init fails, localStorage was cleared, so reload might be needed.
+            window.location.reload();
+          });
+      } else {
+        console.error(
+          "Funkcja window.initializeKnowledgeBase nie jest dostępna."
+        );
+        alert(
+          "Nie można w pełni zresetować danych: funkcja inicjalizacyjna jest niedostępna. Dane lokalne zostały wyczyszczone. Aplikacja zostanie przeładowana."
+        );
+        window.location.reload();
+      }
+    }
+  };
 
   const supplierOptions = [
     "Puszki&Słoiki S.A.",
@@ -2434,6 +2475,16 @@ const LocalAdminDashboard = () => {
           >
             <BarChart3Icon />
             {sidebarOpen && <span className="ml-3">Raporty</span>}
+          </button>
+
+          {/* Developer Settings Button */}
+          <button
+            onClick={handleClearAndReloadLocalStorage}
+            className="w-full flex items-center px-4 py-3 mt-4 border-t border-gray-700 text-yellow-300 transition-colors hover:bg-red-700 hover:text-white"
+            title="Resetuj Dane Lokalne"
+          >
+            <RefreshCwIcon /> {/* Using RefreshCwIcon as planned */}
+            {sidebarOpen && <span className="ml-3">Resetuj Dane Lokalne</span>}
           </button>
         </nav>
       </div>
@@ -4027,6 +4078,7 @@ if (container && !window._reactRootInitialized) {
   const root = ReactDOM.createRoot(container);
   root.render(<App />); // This will render the App component defined in script.js
   window._reactRootInitialized = true; // Set global flag
+  window._reactAppRenderedByScriptJs = true; // Flag specifically for script.js rendering
   console.log("INFO: React root for #root initialized by script.js.");
 } else if (container && window._reactRootInitialized) {
   console.log(

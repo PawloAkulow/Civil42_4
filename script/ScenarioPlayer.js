@@ -1,367 +1,413 @@
-class ScenarioPlayer {
-  constructor() {
-    this.scenarios = [];
-    this.activeScenario = null;
+/**
+ * scenarioPlayer.js
+ * Handles the execution of scripted AI monologues and interacts with localStorage.
+ */
+
+// --- localStorage Utilities ---
+function getStorageItem(key) {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : null;
+  } catch (error) {
+    console.error(`Error getting item ${key} from localStorage:`, error);
+    return null;
+  }
+}
+
+function setStorageItem(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.error(`Error setting item ${key} in localStorage:`, error);
+  }
+}
+
+// --- Scenario Initial Data (to be fetched) ---
+let scenarioInitialData = null;
+
+async function fetchInitialData() {
+  if (scenarioInitialData) return scenarioInitialData;
+  try {
+    const response = await fetch("../mocks/scenarioInitialData.json");
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    scenarioInitialData = await response.json();
+    return scenarioInitialData;
+  } catch (error) {
+    console.error("Failed to fetch scenarioInitialData.json:", error);
+    return null;
+  }
+}
+
+// --- ScriptRunner Class ---
+class ScriptRunner {
+  constructor(scenarioId, uiChatLogElement, uiButtonContainerElement) {
+    this.scenarioId = scenarioId;
+    this.uiChatLog = uiChatLogElement;
+    this.uiButtonContainer = uiButtonContainerElement;
+    this.monologueScript = null;
     this.currentStepIndex = 0;
-    this.scenarioMonologueActive = false; // To track if a monologue is playing
-    this.messageTimers = [];
-    this.demoModeActive = false;
+    this.scriptContext = {}; // For storing results of calculations
+    this.isWaitingForUserAction = false;
+    this.actionResolver = null; // Promise resolver for user actions
+
+    // Bind methods
+    this.resumeAfterUserAction = this.resumeAfterUserAction.bind(this);
   }
 
-  async loadScenarios() {
+  async initializeScenarioData() {
+    const allInitialData = await fetchInitialData();
+    if (allInitialData && allInitialData[this.scenarioId]) {
+      const scenarioData = allInitialData[this.scenarioId];
+      for (const key in scenarioData) {
+        setStorageItem(key, scenarioData[key]);
+      }
+      console.log(`localStorage initialized for scenario: ${this.scenarioId}`);
+    } else {
+      console.error(`No initial data found for scenario: ${this.scenarioId}`);
+    }
+  }
+
+  async loadScript() {
     try {
       const response = await fetch("../mocks/demoScenarios.json");
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      const data = await response.json();
-      this.scenarios = data.scenarios;
-      console.log("Demo scenarios loaded:", this.scenarios);
+      const allScenarios = await response.json();
+      const currentScenario = allScenarios.scenarios.find(
+        (s) => s.id === this.scenarioId
+      );
+      if (currentScenario && currentScenario.monologueScript) {
+        this.monologueScript = currentScenario.monologueScript;
+        console.log(`Monologue script loaded for scenario: ${this.scenarioId}`);
+      } else {
+        console.error(
+          `Monologue script not found for scenario: ${this.scenarioId}`
+        );
+        this.monologueScript = [];
+      }
     } catch (error) {
-      console.error("Failed to load demo scenarios:", error);
-      this.scenarios = []; // Ensure scenarios is an empty array on failure
+      console.error("Failed to load demoScenarios.json:", error);
+      this.monologueScript = [];
     }
   }
 
-  setActiveScenario(scenarioId) {
-    this.activeScenario =
-      this.scenarios.find((s) => s.id === scenarioId) || null;
+  async start() {
+    await this.initializeScenarioData();
+    await this.loadScript();
     this.currentStepIndex = 0;
-    this.scenarioMonologueActive = false; // Reset monologue state
-    this.demoModeActive = !!this.activeScenario;
-
-    // Clear any existing timers
-    this.clearAllTimers();
-
-    if (this.demoModeActive) {
-      this.showDemoModeIndicator();
-    }
-
-    return this.demoModeActive;
-  }
-
-  clearAllTimers() {
-    this.messageTimers.forEach((timer) => clearTimeout(timer));
-    this.messageTimers = [];
-  }
-
-  showDemoModeIndicator() {
-    // Add visual indicator that demo mode is active
-    const demoIndicator = document.createElement("div");
-    demoIndicator.id = "demo-mode-indicator";
-    demoIndicator.className = "demo-mode-indicator";
-    demoIndicator.textContent = "DEMO MODE";
-    demoIndicator.style.position = "fixed";
-    demoIndicator.style.top = "10px";
-    demoIndicator.style.right = "10px";
-    demoIndicator.style.background = "rgba(255, 165, 0, 0.8)";
-    demoIndicator.style.color = "white";
-    demoIndicator.style.padding = "5px 10px";
-    demoIndicator.style.borderRadius = "4px";
-    demoIndicator.style.zIndex = "9999";
-    demoIndicator.style.fontSize = "12px";
-    demoIndicator.style.fontWeight = "bold";
-
-    // Remove existing indicator if any
-    const existingIndicator = document.getElementById("demo-mode-indicator");
-    if (existingIndicator) {
-      existingIndicator.remove();
-    }
-
-    document.body.appendChild(demoIndicator);
-  }
-
-  hideDemoModeIndicator() {
-    const indicator = document.getElementById("demo-mode-indicator");
-    if (indicator) {
-      indicator.remove();
-    }
-  }
-
-  // Start executing the scenario with typing effect
-  async startScenario() {
-    if (!this.activeScenario) {
-      console.error("No active scenario to start");
-      return false;
-    }
-
-    this.demoModeActive = true;
-    this.scenarioMonologueActive = true;
-
-    // Display initial monologue with typing effect
-    await this.displayInitialMonologue();
-
-    // Execute the first step after a brief pause
-    const timer = setTimeout(() => {
-      this.executeNextStep();
-    }, 1500);
-
-    this.messageTimers.push(timer);
-    return true;
-  }
-
-  async displayInitialMonologue() {
-    if (!this.activeScenario || !this.activeScenario.initialMonologue) return;
-
-    // Send the initial message to the AI chat interface
-    if (window.addScenarioMessageToLog) {
-      window.addScenarioMessageToLog({
-        sender: "ai",
-        message: this.activeScenario.initialMonologue,
-        isTyping: true,
-      });
-    }
-
-    // Simulate typing time based on message length
-    const typingDelay = Math.min(
-      this.activeScenario.initialMonologue.length * 10,
-      2000
-    );
-    await new Promise((resolve) => setTimeout(resolve, typingDelay));
-
-    if (window.addScenarioMessageToLog) {
-      window.addScenarioMessageToLog({
-        sender: "ai",
-        message: this.activeScenario.initialMonologue,
-        isTyping: false,
-      });
-    }
+    this.scriptContext = {};
+    this.isWaitingForUserAction = false;
+    if (this.uiChatLog) this.uiChatLog.innerHTML = ""; // Clear chat log
+    if (this.uiButtonContainer) this.uiButtonContainer.innerHTML = ""; // Clear buttons
+    this.executeNextStep();
   }
 
   async executeNextStep() {
-    if (!this.activeScenario || !this.scenarioMonologueActive) return false;
+    if (this.isWaitingForUserAction) return; // Don't proceed if waiting
 
-    const steps = this.activeScenario.planSteps;
-    if (this.currentStepIndex >= steps.length) {
-      // All steps completed, show final recommendation
-      this.displayFinalRecommendation();
-      return false;
-    }
-
-    const currentStep = steps[this.currentStepIndex];
-
-    // First display the thought process (internal thinking)
-    if (currentStep.cywilThoughtProcess) {
-      if (window.addScenarioMessageToLog) {
-        window.addScenarioMessageToLog({
-          sender: "ai",
-          message: currentStep.cywilThoughtProcess,
-          messageType: "thinking",
-          isTyping: true,
-        });
-      }
-
-      // Simulate thinking time
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      if (window.addScenarioMessageToLog) {
-        window.addScenarioMessageToLog({
-          sender: "ai",
-          message: currentStep.cywilThoughtProcess,
-          messageType: "thinking",
-          isTyping: false,
-        });
-      }
-    }
-
-    // Then display the actual "finding" with mock data
-    if (currentStep.mockData && currentStep.cywilPresentationPrompt) {
-      // Format the presentation message, inserting data from mockData
-      let presentationMessage = this.formatMessage(
-        currentStep.cywilPresentationPrompt,
-        currentStep.mockData
-      );
-
-      if (window.addScenarioMessageToLog) {
-        window.addScenarioMessageToLog({
-          sender: "ai",
-          message: presentationMessage,
-          messageType: "result",
-          isTyping: true,
-        });
-      }
-
-      // Simulate typing time
-      const typingDelay = Math.min(presentationMessage.length * 8, 3000);
-      await new Promise((resolve) => setTimeout(resolve, typingDelay));
-
-      if (window.addScenarioMessageToLog) {
-        window.addScenarioMessageToLog({
-          sender: "ai",
-          message: presentationMessage,
-          messageType: "result",
-          isTyping: false,
-        });
-      }
-    }
-
-    // Increment step index
-    this.currentStepIndex++;
-
-    // Schedule next step after a pause
-    const timer = setTimeout(() => {
-      this.executeNextStep();
-    }, 2000); // 2 second pause between steps
-
-    this.messageTimers.push(timer);
-    return true;
-  }
-
-  formatMessage(template, data) {
-    // Replace placeholders in template with actual data
-    let message = template;
-
-    if (typeof data === "object") {
-      // Replace each key in the template with its value from data
-      Object.keys(data).forEach((key) => {
-        const placeholder = new RegExp(`{${key}}`, "g");
-        message = message.replace(placeholder, data[key]);
-      });
-    }
-
-    return message;
-  }
-
-  async displayFinalRecommendation() {
-    if (!this.activeScenario || !this.activeScenario.finalRecommendation) {
-      this.endScenario();
+    if (this.currentStepIndex >= this.monologueScript.length) {
+      console.log("Monologue script finished.");
+      // Potentially call handleTransitionToRealAi implicitly or ensure last step does it
       return;
     }
 
-    const recommendation = this.activeScenario.finalRecommendation;
+    const step = this.monologueScript[this.currentStepIndex];
+    this.currentStepIndex++;
 
-    // Format the recommendation message with mock data
-    let recommendationMessage = this.formatMessage(
-      recommendation.cywilPresentationPrompt,
-      recommendation.mockData
+    console.log("Executing step:", step);
+
+    switch (step.type) {
+      case "ai_speech":
+        await this.handleAiSpeech(step);
+        break;
+      case "ai_speech_dynamic":
+        await this.handleAiSpeechDynamic(step);
+        break;
+      case "delay":
+        await this.handleDelay(step);
+        break;
+      case "calculation":
+        await this.handleCalculation(step);
+        break;
+      case "render_button_dynamic":
+        await this.handleRenderButtonDynamic(step);
+        break;
+      case "wait_for_user_action":
+        await this.handleWaitForUserAction(step);
+        break;
+      case "clear_buttons":
+        await this.handleClearButtons(step);
+        break;
+      case "transition_to_real_ai":
+        await this.handleTransitionToRealAi(step);
+        break;
+      default:
+        console.warn(`Unknown step type: ${step.type}`);
+    }
+
+    // Automatically execute next step if not waiting
+    if (
+      !this.isWaitingForUserAction &&
+      this.currentStepIndex < this.monologueScript.length
+    ) {
+      // Add a small delay before processing next step to allow UI to update
+      setTimeout(() => this.executeNextStep(), 50);
+    } else if (this.isWaitingForUserAction) {
+      console.log("Waiting for user action...");
+    } else {
+      console.log(
+        "End of script or waiting for explicit transition to real AI."
+      );
+    }
+  }
+
+  // --- Step Handlers ---
+  async _appendToChatLog(htmlContent) {
+    if (this.uiChatLog) {
+      const messageDiv = document.createElement("div");
+      messageDiv.classList.add("ai-message"); // Add a class for styling
+      messageDiv.innerHTML = htmlContent; // Use innerHTML to allow for basic HTML in messages
+      this.uiChatLog.appendChild(messageDiv);
+      this.uiChatLog.scrollTop = this.uiChatLog.scrollHeight; // Scroll to bottom
+    }
+  }
+
+  async handleAiSpeech(stepConfig) {
+    await this._appendToChatLog(stepConfig.text);
+  }
+
+  async handleAiSpeechDynamic(stepConfig) {
+    let template = stepConfig.template;
+    const dataToInject = {};
+
+    // Gather data from localStorage
+    if (stepConfig.dataKeys) {
+      stepConfig.dataKeys.forEach((key) => {
+        const value = getStorageItem(key);
+        if (value !== null) dataToInject[key] = value;
+      });
+    }
+
+    // Gather data from scriptContext
+    if (stepConfig.contextKeys) {
+      stepConfig.contextKeys.forEach((key) => {
+        if (this.scriptContext.hasOwnProperty(key)) {
+          dataToInject[key] = this.scriptContext[key];
+        }
+      });
+    }
+
+    // Replace placeholders (simple dot notation resolver)
+    const replacedText = template.replace(
+      /\{(\w+(?:\.\w+)*)\}/g,
+      (match, placeholder) => {
+        const keys = placeholder.split(".");
+        let currentVal = dataToInject;
+        for (const k of keys) {
+          if (currentVal && typeof currentVal === "object" && k in currentVal) {
+            currentVal = currentVal[k];
+          } else {
+            console.warn(
+              `Placeholder {${placeholder}} not found in data sources.`
+            );
+            return match; // Return original placeholder if not found
+          }
+        }
+        return currentVal;
+      }
     );
 
-    if (window.addScenarioMessageToLog) {
-      window.addScenarioMessageToLog({
-        sender: "ai",
-        message: recommendationMessage,
-        messageType: "recommendation",
-        isTyping: true,
-        actions: recommendation.suggestionButtonText
-          ? [
-              {
-                type: "demo_suggestion",
-                value: recommendation.mockData,
-                label: recommendation.suggestionButtonText,
-              },
-            ]
-          : undefined,
+    await this._appendToChatLog(replacedText);
+  }
+
+  async handleDelay(stepConfig) {
+    await new Promise((resolve) => setTimeout(resolve, stepConfig.duration));
+  }
+
+  async handleCalculation(stepConfig) {
+    // WARNING: Direct eval is dangerous. This needs a safe expression parser.
+    // For now, this is a placeholder and assumes simple math that might work with Function constructor.
+    // Production use would require a dedicated math expression parser.
+    let formula = stepConfig.formula;
+    const dataForFormula = {};
+
+    // Gather data from localStorage & scriptContext for the formula
+    if (stepConfig.sourceKeys) {
+      stepConfig.sourceKeys.forEach((key) => {
+        if (this.scriptContext.hasOwnProperty(key)) {
+          dataForFormula[key] = this.scriptContext[key];
+        } else {
+          const storageVal = getStorageItem(key);
+          if (storageVal !== null) dataForFormula[key] = storageVal;
+          else console.warn(`Data for calculation key ${key} not found`);
+        }
       });
     }
 
-    // Simulate typing time
-    const typingDelay = Math.min(recommendationMessage.length * 10, 3000);
-    await new Promise((resolve) => setTimeout(resolve, typingDelay));
+    try {
+      // Create a function with the data keys as arguments
+      const argNames = Object.keys(dataForFormula);
+      const argValues = Object.values(dataForFormula);
 
-    if (window.addScenarioMessageToLog) {
-      window.addScenarioMessageToLog({
-        sender: "ai",
-        message: recommendationMessage,
-        messageType: "recommendation",
-        isTyping: false,
-        actions: recommendation.suggestionButtonText
-          ? [
-              {
-                type: "demo_suggestion",
-                value: recommendation.mockData,
-                label: recommendation.suggestionButtonText,
-              },
-            ]
-          : undefined,
+      // A slightly safer way than direct eval for simple expressions but still limited.
+      // For complex scenarios or user-input formulas, a proper parsing library is essential.
+      const evaluator = new Function(...argNames, `return ${formula};`);
+      const result = evaluator(...argValues);
+      this.scriptContext[stepConfig.outputVar] = result;
+      console.log(`Calculation ${stepConfig.outputVar} = ${result}`);
+    } catch (e) {
+      console.error(`Error in calculation for ${stepConfig.outputVar}: ${e}`);
+      this.scriptContext[stepConfig.outputVar] = undefined;
+    }
+  }
+
+  async handleRenderButtonDynamic(stepConfig) {
+    if (!this.uiButtonContainer) return;
+
+    // Visibility check
+    if (stepConfig.visible_if_context_var_greater_than) {
+      const { varName, value } = stepConfig.visible_if_context_var_greater_than;
+      if (!(this.scriptContext[varName] > value)) {
+        console.log(
+          `Button not rendered due to visibility condition: ${varName} not > ${value}`
+        );
+        return; // Don't render button
+      }
+    }
+
+    let buttonText = stepConfig.template_text;
+    if (stepConfig.contextKeys_for_text) {
+      stepConfig.contextKeys_for_text.forEach((key) => {
+        if (this.scriptContext.hasOwnProperty(key)) {
+          const regex = new RegExp(`\\{${key}\\}`, "g");
+          buttonText = buttonText.replace(regex, this.scriptContext[key]);
+        }
       });
     }
 
-    // End scenario after final recommendation
-    this.endScenario();
-  }
-
-  endScenario() {
-    this.scenarioMonologueActive = false;
-    // Don't deactivate demo mode here to keep the indicator
-    // this.demoModeActive = false;
-    this.clearAllTimers();
-  }
-
-  resetScenario() {
-    this.currentStepIndex = 0;
-    this.scenarioMonologueActive = false;
-    this.demoModeActive = false;
-    this.activeScenario = null;
-    this.clearAllTimers();
-    this.hideDemoModeIndicator();
-  }
-
-  // Check if we should intercept a given user input and trigger a demo scenario
-  shouldInterceptForDemo(userInput, currentPageContext) {
-    if (!userInput || this.scenarioMonologueActive) return false;
-
-    // Simple algorithm to match input to scenario trigger words
-    const normalizedInput = userInput.toLowerCase().trim();
-
-    for (const scenario of this.scenarios) {
-      // Skip if scenario requires specific page context and we're not on that page
-      if (
-        scenario.uiTriggerContext &&
-        currentPageContext !== scenario.uiTriggerContext
-      ) {
-        continue;
-      }
-
-      // Check for scenario trigger words
-      if (
-        scenario.id === "zakupAgregatow" &&
-        (normalizedInput.includes("agregat") ||
-          normalizedInput.includes("kupić") ||
-          normalizedInput.includes("planuj") ||
-          normalizedInput.includes("planowanie") ||
-          normalizedInput.includes("strategia") ||
-          normalizedInput.includes("zakup"))
-      ) {
-        this.setActiveScenario(scenario.id);
-        return true;
-      }
+    const button = document.createElement("button");
+    button.innerHTML = buttonText; // Using innerHTML for text that might have been processed
+    button.classList.add("scenario-button"); // For styling
+    // Assign an ID if specified in stepConfig.action or stepConfig.awaits for specific identification
+    if (stepConfig.action && stepConfig.action.buttonId) {
+      button.id = stepConfig.action.buttonId;
+    } else if (stepConfig.awaits && stepConfig.awaits.length > 0) {
+      // If awaits defines an ID for this button interaction (e.g. button_click_order_aggregates)
+      // This is a conceptual link, actual event handling is below
+      button.dataset.actionId = stepConfig.awaits[0];
     }
 
-    return false;
+    button.addEventListener("click", async () => {
+      if (stepConfig.action) {
+        if (stepConfig.action.type === "update_local_storage_and_ui") {
+          stepConfig.action.updates.forEach((update) => {
+            if (update.localStorageKey && update.valueFromContextVar) {
+              const valueToSet = this.scriptContext[update.valueFromContextVar];
+              let currentStorageValue =
+                getStorageItem(update.localStorageKey) || {};
+
+              // Simple path update, for deeply nested, a helper would be better
+              if (update.valuePath) {
+                let tempObj = currentStorageValue;
+                const pathParts = update.valuePath.split(".");
+                for (let i = 0; i < pathParts.length - 1; i++) {
+                  if (
+                    !tempObj[pathParts[i]] ||
+                    typeof tempObj[pathParts[i]] !== "object"
+                  ) {
+                    tempObj[pathParts[i]] = {};
+                  }
+                  tempObj = tempObj[pathParts[i]];
+                }
+                tempObj[pathParts[pathParts.length - 1]] = valueToSet;
+              } else {
+                currentStorageValue = valueToSet; // Overwrite if no path
+              }
+              setStorageItem(update.localStorageKey, currentStorageValue);
+              console.log(
+                `Updated localStorage '${update.localStorageKey}':`,
+                currentStorageValue
+              );
+
+              // Basic UI update (placeholder, needs specific implementation)
+              if (update.uiUpdateTargetSelector && update.uiUpdateType) {
+                const targetElement = document.querySelector(
+                  update.uiUpdateTargetSelector
+                );
+                if (targetElement) {
+                  if (update.uiUpdateType === "textContent")
+                    targetElement.textContent = valueToSet;
+                  else if (update.uiUpdateType === "value")
+                    targetElement.value = valueToSet;
+                  // Add more UI update types as needed
+                }
+              }
+            }
+          });
+        }
+      }
+      // If the script is waiting for this button click to resume
+      if (this.isWaitingForUserAction && this.actionResolver) {
+        const awaitId = button.dataset.actionId; // Check if this button's actionId matches what we are waiting for
+        const currentWaitingStep =
+          this.monologueScript[this.currentStepIndex - 1]; // The step that initiated the wait
+        if (
+          currentWaitingStep &&
+          currentWaitingStep.type === "wait_for_user_action" &&
+          currentWaitingStep.awaits.includes(awaitId)
+        ) {
+          this.resumeAfterUserAction();
+        }
+      }
+    });
+    this.uiButtonContainer.appendChild(button);
   }
 
-  // Method to intercept AI requests - returns true if intercepted
-  interceptAiRequest(userInput, currentPageContext) {
-    if (this.shouldInterceptForDemo(userInput, currentPageContext)) {
-      console.log("Demo scenario activated for input:", userInput);
-      // Add user message to log first
-      if (window.addScenarioMessageToLog) {
-        window.addScenarioMessageToLog({
-          sender: "user",
-          message: userInput,
-        });
-      }
-      // Start the scenario playback
-      setTimeout(() => {
-        this.startScenario();
-      }, 500);
-      return true;
+  async handleWaitForUserAction(stepConfig) {
+    this.isWaitingForUserAction = true;
+    // stepConfig.awaits might define specific action IDs we are waiting for
+    // The button handler will call resumeAfterUserAction if its action ID matches
+    console.log(
+      `Script paused, waiting for user actions: ${stepConfig.awaits.join(", ")}`
+    );
+    return new Promise((resolve) => {
+      this.actionResolver = resolve; // Store resolver to be called by button click
+    });
+  }
+
+  resumeAfterUserAction() {
+    if (this.isWaitingForUserAction && this.actionResolver) {
+      this.isWaitingForUserAction = false;
+      this.actionResolver(); // Resolve the promise from handleWaitForUserAction
+      this.actionResolver = null;
+      console.log("User action received, resuming script.");
+      this.executeNextStep(); // Continue script execution
     }
-    return false;
+  }
+
+  async handleClearButtons(stepConfig) {
+    if (this.uiButtonContainer) {
+      this.uiButtonContainer.innerHTML = "";
+    }
+  }
+
+  async handleTransitionToRealAi(stepConfig) {
+    console.log("Transitioning to real AI. Scripted monologue finished.");
+    this._appendToChatLog(
+      "<i>--- End of scripted demo. You can now ask free-form questions. ---</i>"
+    );
+    // Emit an event or set a global flag that the main application can listen for
+    // For example:
+    // document.dispatchEvent(new CustomEvent('scriptedDemoFinished', { detail: { scenarioId: this.scenarioId } }));
+    // For now, this is a console log and a message.
+    // The main application logic needs to handle this transition.
   }
 }
 
-// Export as global for now
-window.ScenarioPlayer = ScenarioPlayer;
-
-// Create a singleton instance
-window.scenarioPlayer = new ScenarioPlayer();
-
-// Initialize by loading scenarios
-document.addEventListener("DOMContentLoaded", () => {
-  if (window.scenarioPlayer) {
-    window.scenarioPlayer.loadScenarios().then(() => {
-      console.log("ScenarioPlayer initialized with scenarios");
-    });
-  }
-});
+// Export or make available to the global scope if needed, e.g.:
+// window.ScriptRunner = ScriptRunner;
+// window.getStorageItem = getStorageItem;
+// window.setStorageItem = setStorageItem;

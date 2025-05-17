@@ -27,7 +27,7 @@ window.process = {
 };
 
 // Initialize knowledge base by preloading all mock data
-async function initializeKnowledgeBase() {
+window.initializeKnowledgeBase = async function () {
   try {
     // Load JSON files into localStorage
     const files = [
@@ -67,10 +67,10 @@ async function initializeKnowledgeBase() {
   } catch (error) {
     console.error("Error initializing knowledge base:", error);
   }
-}
+};
 
 // Initialize environment variables
 console.log("Environment variables initialized");
 
 // Initialize knowledge base
-initializeKnowledgeBase();
+window.initializeKnowledgeBase();
