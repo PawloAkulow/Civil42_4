@@ -23,16 +23,8 @@ window.routes = window.routes || {};
 // Original fetch function
 const originalFetch = window.fetch;
 
-// Use existing global function if available to avoid duplicate declarations
-const isLocalFileProtocol =
-  typeof window.isLocalFileProtocol === "function"
-    ? window.isLocalFileProtocol
-    : () => window.location.protocol === "file:";
-
-// Store the function globally for other scripts to use
-if (typeof window.isLocalFileProtocol !== "function") {
-  window.isLocalFileProtocol = isLocalFileProtocol;
-}
+// Use the global isLocalFileProtocol function - no local declaration
+// This prevents duplicate variable declaration errors
 
 /**
  * Intercept fetch requests to handle our mock API routes
@@ -45,7 +37,7 @@ window.fetch = async function (url, options) {
   if (typeof url === "string") {
     try {
       // For local file protocol, handle special cases
-      if (isLocalFileProtocol() && url.startsWith("/api/")) {
+      if (window.isLocalFileProtocol() && url.startsWith("/api/")) {
         console.log(`Local file protocol detected, simulating ${url} endpoint`);
         const mockResponse = new Response(
           JSON.stringify({
@@ -98,7 +90,7 @@ window.fetch = async function (url, options) {
 const loadEnvVars = async () => {
   try {
     // Skip if we're using file:// protocol
-    if (isLocalFileProtocol()) {
+    if (window.isLocalFileProtocol()) {
       console.log("Running with file:// protocol, skipping .env file loading");
       return;
     }

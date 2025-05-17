@@ -1,7 +1,18 @@
+// Define global isLocalFileProtocol function first
+// This should be the single source of truth for this function in the application
+if (typeof window.isLocalFileProtocol === "undefined") {
+  window.isLocalFileProtocol = () => window.location.protocol === "file:";
+  console.log("Global isLocalFileProtocol defined by env-setup.js");
+} else {
+  console.log(
+    "Global isLocalFileProtocol already defined, skipping definition in env-setup.js"
+  );
+}
+
 // Initialize process.env for browser environment
 window.process = {
   env: {
-    OPENAI_API_KEY: "",
+    OPENAI_API_KEY: undefined,
     AI_MODEL: "gpt-4.1-nano",
     MOCK_DELAY: "300",
     NODE_ENV: "development",

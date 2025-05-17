@@ -21,17 +21,8 @@ if (typeof process === "undefined" || !process.env) {
 // Get OpenAI API key from environment variable
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
-// Utility function to check if we're running via file:// protocol
-// Use existing global function if available to avoid duplicate declarations
-const isLocalFileProtocol =
-  typeof window.isLocalFileProtocol === "function"
-    ? window.isLocalFileProtocol
-    : () => window.location.protocol === "file:";
-
-// Store the function globally for other scripts to use
-if (typeof window.isLocalFileProtocol !== "function") {
-  window.isLocalFileProtocol = isLocalFileProtocol;
-}
+// Use the global isLocalFileProtocol function - no local declaration
+// This prevents duplicate variable declaration errors
 
 // Check if we have a valid API key
 const isApiKeyValid = () => {
@@ -39,7 +30,7 @@ const isApiKeyValid = () => {
     OPENAI_API_KEY &&
     OPENAI_API_KEY.startsWith("sk-") &&
     OPENAI_API_KEY.length > 20 &&
-    !isLocalFileProtocol() // Always return false for local file protocol
+    !window.isLocalFileProtocol() // Use the global function with window prefix
   );
 };
 
@@ -87,7 +78,7 @@ Odpowiadaj tak, by pomóc użytkownikowi w efektywnym zarządzaniu zasobami gmin
  */
 const getMockOpenAIResponse = async (requestData) => {
   // If running in local file protocol, always use mock responses
-  if (isLocalFileProtocol()) {
+  if (window.isLocalFileProtocol()) {
     console.log("Using mock API response due to local file protocol");
 
     // Simulate thinking delay (more complex prompts take longer)

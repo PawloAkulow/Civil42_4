@@ -79,75 +79,6 @@ const addMessage = async (
 };
 
 /**
- * Check if we're running on a local file:// protocol
- * @returns {boolean} True if running on file:// protocol
- */
-const isLocalFileProtocol =
-  typeof window.isLocalFileProtocol === "function"
-    ? window.isLocalFileProtocol
-    : () => window.location.protocol === "file:";
-
-// Store the function globally for other scripts to use
-if (typeof window.isLocalFileProtocol !== "function") {
-  window.isLocalFileProtocol = isLocalFileProtocol;
-}
-
-/**
- * Generate a local fallback response
- * @param {string} userInput - The user's input message
- * @param {Object} contextData - Context data about the conversation
- * @returns {string} A simulated AI response
- */
-const generateLocalFallbackResponse = (userInput, contextData) => {
-  // Simple responses based on keywords in user input
-  const input = userInput.toLowerCase();
-
-  if (
-    input.includes("witaj") ||
-    input.includes("cześć") ||
-    input.includes("hej")
-  ) {
-    return "Witaj! Jak mogę pomóc w zarządzaniu zasobami gminy?";
-  }
-
-  if (input.includes("pomoc") || input.includes("pomocy")) {
-    return "Jestem Sharky, asystent AI. Mogę pomóc w analizowaniu danych demograficznych, planowaniu zasobów i dostarczaniu informacji o stanie gminy. Co chciałbyś wiedzieć?";
-  }
-
-  if (input.includes("zasoby") || input.includes("zapasy")) {
-    return "W systemie monitorowania zasobów możesz sprawdzić aktualne zapasy, zaplanować nowe zamówienia i analizować trendy wykorzystania. Czy interesuje Cię konkretny rodzaj zasobów?";
-  }
-
-  if (
-    input.includes("alarm") ||
-    input.includes("kryzys") ||
-    input.includes("kryzysow")
-  ) {
-    return "W trybie kryzysowym mogę pomóc w koordynacji dostępnych zasobów, komunikacji z innymi jednostkami i optymalizacji planów działania. Czy potrzebujesz konkretnych informacji o protokołach kryzysowych?";
-  }
-
-  if (
-    input.includes("demograficz") ||
-    input.includes("ludność") ||
-    input.includes("mieszkańc")
-  ) {
-    // Include some of the contextData if available
-    let demographicInfo = "";
-    if (contextData && contextData.demographic) {
-      const demo = contextData.demographic;
-      demographicInfo = `\nAktualne dane demograficzne: Populacja: ${
-        demo.population || "brak danych"
-      }, Średni wiek: ${demo.averageAge || "brak danych"}.`;
-    }
-
-    return `Dane demograficzne są kluczowe dla planowania zasobów gminy. Pozwalają przewidzieć zapotrzebowanie na wodę, żywność i energię.${demographicInfo}`;
-  }
-
-  // Default response with timestamp to show it's reactive
-  return `Działam teraz w trybie lokalnym (${new Date().toLocaleTimeString()}). Aby korzystać z pełnych możliwości asystenta AI, uruchom aplikację przez serwer HTTP, nie przez plik lokalny.`;
-};
-
-/**
  * Get response from OpenAI API
  * @param {string} userInput - User message
  * @param {Array} conversationHistory - Previous messages in conversation
@@ -160,7 +91,7 @@ const getResponse = async (
   contextData = {}
 ) => {
   // If we're running from a local file, don't attempt API call
-  if (isLocalFileProtocol()) {
+  if (window.isLocalFileProtocol()) {
     console.log(
       "Running locally with file:// protocol - using simulated AI responses"
     );

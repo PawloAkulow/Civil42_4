@@ -75,7 +75,7 @@
     <script src="mocks/openaiProxy.js"></script>
 
     <!-- Main application script loaded last -->
-    <script src="script.js"></script>
+    <script type="text/babel" src="script.js"></script>
   </head>
   <body>
     <div id="root">
@@ -1990,10 +1990,14 @@
 
         // Create a fallback for realAI if it doesn't exist
         if (typeof window.realAI === "undefined") {
-          console.log("Creating fallback for realAI");
+          console.log(
+            "Creating fallback for realAI in resource-monitoring-home.html"
+          );
           window.realAI = window.mockAI || {
             getConversationLog: async (contextType) => {
-              console.log("Using fallback realAI.getConversationLog");
+              console.log(
+                "Using fallback realAI.getConversationLog in resource-monitoring-home.html"
+              );
               return [
                 {
                   role: "assistant",
@@ -2004,7 +2008,9 @@
               ];
             },
             addMessage: async (role, content, contextType) => {
-              console.log("Using fallback realAI.addMessage");
+              console.log(
+                "Using fallback realAI.addMessage in resource-monitoring-home.html"
+              );
               return [
                 {
                   role,
@@ -2014,7 +2020,9 @@
               ];
             },
             getResponse: async (userInput) => {
-              console.log("Using fallback realAI.getResponse");
+              console.log(
+                "Using fallback realAI.getResponse in resource-monitoring-home.html"
+              );
               return "Przepraszam, działam w trybie awaryjnym. Spróbuj odświeżyć stronę lub skontaktuj się z administratorem.";
             },
           };
